@@ -4,8 +4,17 @@
   "description": "Gestión Multimedia de Alto Rendimiento",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1E1E1E",
+  "background_color": "#FFFFFF",
   "theme_color": "#E67E22",
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     {
       "src": "/logo-akasha.png",
