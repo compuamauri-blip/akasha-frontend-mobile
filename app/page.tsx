@@ -2,11 +2,11 @@
 import { useState, useEffect, useRef } from 'react';
 
 /* ==========================================================================
-   COMPONENTES SVG EMPAQUETADOS
+   COMPONENTES SVG (Engranaje, WhatsApp, Mail)
    ========================================================================== */
 const IconGear = ({ fill }: { fill: string }) => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill={fill}>
-    <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.98C19.47,12.66 19.5,12.34 19.5,12C19.5,11.66 19.47,11.34 19.43,11.02L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.02C4.53,11.34 4.5,11.66 4.5,12C4.5,11.66 4.47,11.34 4.43,11.02L2.46,9.37C2.27,9.22 2.21,8.95 2.34,8.73L4.34,5.27C4.46,5.05 4.73,4.96 4.95,5.05L7.44,6.05C7.96,5.66 8.5,5.32 9.13,5.07L9.5,2.42C9.54,2.18 9.75,2 10,2H14C14.25,2 14.46,2.18 14.5,2.42L14.87,5.07C15.5,5.32 16.04,5.66 16.56,6.05L19.05,5.05C19.27,4.96 19.54,5.05 19.66,5.27L21.66,8.73C21.78,8.95 21.73,9.22 21.54,9.37L19.43,11.02C19.47,11.34 19.5,11.66 19.5,12C19.5,12.34 19.47,12.66 19.43,12.98L21.54,14.63C21.73,14.78 21.78,15.05 21.66,15.27L19.66,18.73C19.54,18.95 19.27,19.03 19.05,18.95L16.56,17.94C16.04,18.34 15.5,18.68 14.87,18.93L14.5,21.58C14.46,21.82 14.25,22 14,22H10C9.75,22 9.54,21.82 9.5,21.58L9.13,18.93C8.5,18.68 7.96,18.34 7.44,17.94L4.95,18.95C4.73,19.03 4.46,18.95 4.34,18.73L2.34,15.27C2.21,15.05 2.27,14.78 2.46,14.63L4.57,12.98Z"/>
+    <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.98C19.47,12.66 19.5,12.34 19.5,12C19.5,11.66 19.47,11.34 19.43,11.02L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.02C4.53,11.34 4.5,11.66 4.5,12C4.5,12.34 4.53,12.66 4.57,12.98L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.98Z"/>
   </svg>
 );
 const IconWA = () => (
@@ -22,9 +22,8 @@ const IconMail = () => (
 
 export default function Home() {
   /* ==========================================================================
-     ESTADOS DE LA APLICACIÓN
+     ESTADOS (Splash Screen + Tu Lógica Original)
      ========================================================================== */
-  // Pantalla de Carga (Splash Screen)
   const [showSplash, setShowSplash] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
 
@@ -42,23 +41,15 @@ export default function Home() {
 
   // Configuración del Usuario
   const [config, setConfig] = useState({
-    TemaOscuro: false, 
-    Notificaciones: true, 
-    AutoLimpiar: false, 
-    ControlParental: false,
-    RutaDescargas: 'C:/Users/Downloads/AKASHA', 
-    FormatoDefault: 'Original (Sin conversión)',
-    CalidadDefault: 'Original (Sin compresión)', 
-    Subtitulos: false, 
-    MaxSimultaneas: '1',
-    LimiteVelocidad: 'Sin limite', 
-    VideosPrivados: false, 
-    Modo1Clic: false
+    TemaOscuro: false, Notificaciones: true, AutoLimpiar: false, ControlParental: false,
+    RutaDescargas: 'C:/Users/Downloads/AKASHA', FormatoDefault: 'Original (Sin conversión)',
+    CalidadDefault: 'Original (Sin compresión)', Subtitulos: false, MaxSimultaneas: '1',
+    LimiteVelocidad: 'Sin limite', VideosPrivados: false, Modo1Clic: false
   });
   const [tempConfig, setTempConfig] = useState({ ...config });
 
   /* ==========================================================================
-     REFERENCIAS
+     REFERENCIAS (Sincronización)
      ========================================================================== */
   const lastClipboard = useRef('');
   const listaVideosRef = useRef(listaVideos);
@@ -72,27 +63,22 @@ export default function Home() {
   /* ==========================================================================
      EFECTOS SECUNDARIOS
      ========================================================================== */
-  
-  // Manejo de la Pantalla de Carga (Splash)
+  // 1. Control de Splash Screen
   useEffect(() => {
-    const timerFade = setTimeout(() => setFadeOut(true), 2500);
-    const timerHide = setTimeout(() => setShowSplash(false), 3500);
-    return () => { clearTimeout(timerFade); clearTimeout(timerHide); };
+    const timer1 = setTimeout(() => setFadeOut(true), 2500);
+    const timer2 = setTimeout(() => setShowSplash(false), 3500);
+    return () => { clearTimeout(timer1); clearTimeout(timer2); };
   }, []);
 
-  // Metadatos
+  // 2. Metadatos
   useEffect(() => {
     document.title = "AKASHA Downloader Pro";
     let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'icon';
-      document.head.appendChild(link);
-    }
+    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
     link.href = '/logo-akasha.png';
   }, []);
 
-  // Monitor del Portapapeles
+  // 3. Monitor de Portapapeles
   useEffect(() => {
     const checkClipboard = async () => {
       if (!document.hasFocus()) return;
@@ -126,7 +112,7 @@ export default function Home() {
     return () => { clearInterval(interval); window.removeEventListener('focus', checkClipboard); };
   }, [config.Modo1Clic]);
 
-  // Motor de Descargas
+  // 4. Motor de Descargas (Cola)
   useEffect(() => {
     let isActive = true;
     const procesarCola = async () => {
@@ -141,8 +127,7 @@ export default function Home() {
           try {
             const res = await fetch(`https://akasha-api-1k5x.onrender.com/api/progreso/${v.id}`);
             if (res.ok) { 
-              const data = await res.json(); 
-              progressUpdates[v.id] = data.progreso; 
+              const data = await res.json(); progressUpdates[v.id] = data.progreso; 
             }
           } catch(e) {} 
         }
@@ -162,23 +147,17 @@ export default function Home() {
               const p = progressUpdates[v.id];
               if (p < 0) {
                 newState[i] = { ...v, progreso: 0, colorProgreso: '#CC0000', estado: 'Error' };
-                hasChanges = true; 
-                activeCount--;
+                hasChanges = true; activeCount--;
               } else if (p >= 0 && p !== v.progreso) {
-                let c = '#FF0000'; 
-                if (p > 33) c = '#FF8C00'; 
-                if (p > 66) c = '#F1C40F'; 
-                if (p >= 100) c = '#00C851'; 
+                let c = '#FF0000'; if (p > 33) c = '#FF8C00'; if (p > 66) c = '#F1C40F'; if (p >= 100) c = '#00C851'; 
                 newState[i] = { ...v, progreso: p, colorProgreso: c, estado: p >= 100 ? 'Completado' : 'Descargando' };
-                hasChanges = true;
-                if (p >= 100) activeCount--; 
+                hasChanges = true; if (p >= 100) activeCount--; 
               }
             }
             if (newState[i].estado === 'En Cola' && activeCount < maxConcurrent) {
               activeCount++;
               newState[i] = { ...newState[i], estado: 'Descargando', progreso: 1, colorProgreso: '#FF0000' };
-              hasChanges = true;
-              toTrigger.push(newState[i]);
+              hasChanges = true; toTrigger.push(newState[i]);
             }
           }
           descargasATrigger = toTrigger;
@@ -187,8 +166,7 @@ export default function Home() {
 
         descargasATrigger.forEach(v => {
           fetch('https://akasha-api-1k5x.onrender.com/api/descargar', {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               url: v.url, id_video: v.id, formato: conf.FormatoDefault, ruta_base: conf.RutaDescargas, 
               limite_velocidad: conf.LimiteVelocidad, subtitulos: conf.Subtitulos, calidad: conf.CalidadDefault 
@@ -203,7 +181,7 @@ export default function Home() {
   }, []);
 
   /* ==========================================================================
-     FUNCIONES
+     FUNCIONES DE MANEJO
      ========================================================================== */
   const abrirConfiguracion = () => { setTempConfig({ ...config }); setPestañaActiva('General'); setMostrarConfig(true); };
   const guardarConfiguracion = () => { setConfig({ ...tempConfig }); setMostrarConfig(false); };
@@ -215,8 +193,8 @@ export default function Home() {
       const res = await fetch('https://akasha-api-1k5x.onrender.com/api/abrir_carpeta', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ruta: rutaWindows })
       });
-      if (!res.ok) alert(`⚠️ La carpeta aún no existe en tu computadora.`);
-    } catch (e) { alert(`Servidor apagado. Ruta: ${config.RutaDescargas}`); }
+      if (!res.ok) alert(`⚠️ La carpeta aún no existe.`);
+    } catch (e) { alert(`Servidor apagado.`); }
   };
 
   const abrirExplorador = async () => {
@@ -239,22 +217,17 @@ export default function Home() {
     if (!linkInput.trim()) return;
     const urls = linkInput.split('\n').map(u => u.trim()).filter(u => u !== '');
     let validUrls: string[] = [];
-    let errorType = '';
     for (const url of urls) {
-      if (!/^https?:\/\/.+/i.test(url)) { errorType = 'errada'; break; }
-      else if (listaVideos.some(v => v.url === url) || validUrls.includes(url)) { errorType = 'repetida'; break; }
-      else { validUrls.push(url); }
+      if (/^https?:\/\/.+/i.test(url) && !listaVideos.some(v => v.url === url)) validUrls.push(url);
     }
-    if (errorType === 'errada') { alert("URL errada"); return; }
-    else if (errorType === 'repetida') { alert("URL repetida"); return; }
     if (validUrls.length > 0) {
-      setListaVideos(prev => [...prev, ...validUrls.map((url, i) => ({ id: Date.now().toString() + i, url: url, estado: 'Pendiente', progreso: 0, colorProgreso: '#FF0000' }))]);
+      setListaVideos(prev => [...prev, ...validUrls.map((url, i) => ({ id: Date.now().toString() + i, url, estado: 'Pendiente', progreso: 0, colorProgreso: '#FF0000' }))]);
       setLinkInput(''); 
     }
   };
 
   const limpiarListaSegura = () => {
-    if (listaVideos.some(v => v.estado === 'Descargando' || v.estado === 'En Cola')) { alert("Espere a finalizar."); return; }
+    if (listaVideos.some(v => v.estado === 'Descargando' || v.estado === 'En Cola')) { alert("Espera a finalizar."); return; }
     setListaVideos([]);
   };
 
@@ -276,7 +249,7 @@ export default function Home() {
   };
 
   /* ==========================================================================
-     ESTILOS
+     ESTILOS DINÁMICOS
      ========================================================================== */
   const isDark = config.TemaOscuro;
   const isTempDark = tempConfig.TemaOscuro;
@@ -294,13 +267,13 @@ export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden">
       
-      {/* --- PANTALLA DE CARGA ANIMADA (SPLASH SCREEN) --- */}
+      {/* --- PANTALLA DE CARGA (SPLASH SCREEN) --- */}
       {showSplash && (
-        <div className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#1E1E1E] transition-opacity duration-1000 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white transition-opacity duration-1000 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
           <div className="relative w-48 h-48 mb-6 animate-pulse">
-            <img src="/logo-akasha.png" alt="AKASHA Logo" className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(230,126,34,0.6)]" />
+            <img src="/logo-akasha.png" alt="Logo" className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(230,126,34,0.4)]" />
           </div>
-          <h1 className="text-4xl font-extrabold text-white tracking-widest mb-1">AKASHA</h1>
+          <h1 className="text-4xl font-extrabold text-[#2d3e50] tracking-widest mb-1">AKASHA</h1>
           <p className="text-[#E67E22] text-xl font-medium tracking-[0.3em] uppercase mb-12">Downloader</p>
           <div className="flex space-x-3">
             <div className="w-3 h-3 bg-[#E67E22] rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
@@ -310,14 +283,16 @@ export default function Home() {
         </div>
       )}
 
-      {/* --- INTERFAZ PRINCIPAL --- */}
+      {/* --- INTERFAZ DE LA APLICACIÓN --- */}
       <div className={`min-h-screen flex items-center justify-center p-4 font-sans transition-colors duration-300 ${cBgApp} ${cFgText}`}>
         <div className={`w-full max-w-[920px] h-[85vh] min-h-[580px] max-h-[750px] rounded-[8px] shadow-2xl flex flex-col border-2 border-[#E67E22] ${cBgBox}`}>
+          
           <header className="flex justify-between items-center p-4 flex-wrap gap-2 flex-none">
             <div className="flex items-center gap-4">
               <img src="/logo-akasha.png" className="w-[55px] h-[55px] object-contain" alt="logo" />
               <h1 className="text-[26px] font-bold">AKASHA Downloader v1</h1>
             </div>
+            {/* BOTÓN ENGRANAJE (YA REPARADO) */}
             <button type="button" onClick={abrirConfiguracion} className="w-[45px] h-[45px] cursor-pointer flex justify-center items-center transition-all duration-700 hover:rotate-[360deg] active:scale-90">
               <IconGear fill={isDark ? '#CCCCCC' : '#555555'} />
             </button>
@@ -357,19 +332,15 @@ export default function Home() {
                     <td className="p-2 flex justify-center gap-1">
                       {v.estado !== 'Completado' && (
                         <>
-                          <button type="button" onClick={() => togglePausa(v.id)} className="w-[28px] h-[28px] bg-[#FFF0E0] border border-[#FFCC99] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#FFE0C0] shadow-sm active:scale-90 transition-transform">
+                          <button type="button" onClick={() => togglePausa(v.id)} className="w-[28px] h-[28px] bg-[#FFF0E0] border border-[#FFCC99] rounded-[4px] flex justify-center items-center hover:bg-[#FFE0C0] shadow-sm">
                             {v.estado === 'Pausado' ? <span className="text-[#FF8C00] font-bold text-[10px]">▶</span> : <span className="text-[#FF8C00] font-bold text-[10px]">||</span>}
                           </button>
-                          <button type="button" onClick={() => eliminarVideo(v.id)} className="w-[28px] h-[28px] bg-[#FFE6E6] border border-[#FFB3B3] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#FFCCCC] shadow-sm active:scale-90 transition-transform">
+                          <button type="button" onClick={() => eliminarVideo(v.id)} className="w-[28px] h-[28px] bg-[#FFE6E6] border border-[#FFB3B3] rounded-[4px] flex justify-center items-center hover:bg-[#FFCCCC] shadow-sm">
                             <span className="text-[#CC0000] font-bold text-xs">X</span>
                           </button>
                         </>
                       )}
-                      {v.estado === 'Completado' && (
-                         <button type="button" onClick={() => eliminarVideo(v.id)} className="w-[28px] h-[28px] bg-transparent flex justify-center items-center cursor-pointer hover:bg-gray-200 rounded-full">
-                           <span className="text-[#00C851] font-bold text-lg">✓</span>
-                         </button>
-                      )}
+                      {v.estado === 'Completado' && <button onClick={() => eliminarVideo(v.id)} className="text-[#00C851] font-bold text-lg">✓</button>}
                     </td>
                   </tr>
                 ))}
@@ -388,13 +359,13 @@ export default function Home() {
         </div>
       </div>
 
-      {/* --- MODAL CONFIGURACIÓN --- */}
+      {/* --- MODAL CONFIGURACIÓN (RESTAURADO) --- */}
       {mostrarConfig && (
         <div className="absolute inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
           <div className={`w-full max-w-[560px] flex flex-col rounded-[8px] border border-gray-300 shadow-2xl overflow-hidden ${cConfigModalBg} ${cConfigText}`}>
             <div className={`h-[35px] ${cConfigInnerBg} flex justify-between items-center px-[12px] border-b ${cConfigBorder} flex-none`}>
               <div className="flex items-center gap-[8px] text-[13px]">
-                <img src="/logo-akasha.png" className="w-[18px] h-[18px]" alt="icon" /> 
+                <img src="/logo-akasha.png" className="w-[18px] h-[18px] object-contain" alt="icon" /> 
                 <span>Configuración - AKASHA v1</span>
               </div>
               <button type="button" onClick={cancelarConfiguracion} className="w-[30px] h-[24px] flex items-center justify-center hover:bg-[#E81123] hover:text-white rounded">✕</button>
@@ -413,22 +384,22 @@ export default function Home() {
                 {pestañaActiva === 'General' && (
                   <div className="space-y-[12px]">
                     <div className="flex items-center gap-[8px]">
-                      <input id="chkTema" type="checkbox" checked={tempConfig.TemaOscuro} onChange={(e) => setTempConfig(prev => ({...prev, TemaOscuro: e.target.checked}))} className="w-[14px] h-[14px]"/> 
+                      <input id="chkTema" type="checkbox" checked={tempConfig.TemaOscuro} onChange={(e) => setTempConfig(prev => ({...prev, TemaOscuro: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
                       <label htmlFor="chkTema" className="font-bold cursor-pointer">{tempConfig.TemaOscuro ? 'Modo Claro' : 'Modo Oscuro'}</label>
                     </div>
                     <div className="flex items-center gap-[8px]">
                       <input id="chkNotif" type="checkbox" checked={tempConfig.Notificaciones} onChange={(e) => setTempConfig(prev => ({...prev, Notificaciones: e.target.checked}))} /> 
-                      <label htmlFor="chkNotif">Sonido al terminar</label>
+                      <label htmlFor="chkNotif">Alertas sonoras</label>
                     </div>
                   </div>
                 )}
-                {/* Secciones de Soporte y Contacto (Manteniendo tu estructura original) */}
+                {/* SOPORTE (TU SECCIÓN ORIGINAL) */}
                 {pestañaActiva === 'Soporte y Comunidad' && (
                   <div className="flex flex-col items-center justify-center pt-2">
-                     <img src="/logo-akasha.png" className="w-[75px] h-[75px] mb-[15px]" alt="logo" />
-                     <button type="button" onClick={() => setModalAbierto('manual')} className={`${btnPremium} w-full max-w-[280px] h-[45px] bg-[#3498DB] text-white mb-[10px]`}>Manual de Usuario</button>
-                     <button type="button" onClick={() => setModalAbierto('contacto')} className={`${btnPremium} w-full max-w-[280px] h-[45px] bg-[#9B59B6] text-white mb-[10px]`}>Contacto</button>
-                     <button type="button" onClick={() => setModalAbierto('donar')} className={`${btnPremium} w-full max-w-[280px] h-[45px] bg-[#2ECC71] text-black`}>Donar</button>
+                     <img src="/logo-akasha.png" className="w-[75px] h-[75px] object-contain mb-[15px]" alt="logo" />
+                     <button type="button" onClick={() => setModalAbierto('manual')} className={`${btnPremium} w-full max-w-[280px] bg-[#3498DB] text-white mb-[10px]`}>Manual de Usuario</button>
+                     <button type="button" onClick={() => setModalAbierto('contacto')} className={`${btnPremium} w-full max-w-[280px] bg-[#9B59B6] text-white mb-[10px]`}>Contacto</button>
+                     <button type="button" onClick={() => setModalAbierto('donar')} className={`${btnPremium} w-full max-w-[280px] bg-[#2ECC71] text-black`}>Donar</button>
                   </div>
                 )}
               </div>
@@ -442,13 +413,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* --- MODALES SECUNDARIOS (CONTACTO / DONAR / MANUAL) --- */}
-      {/* Se mantienen exactamente igual a tu versión original para no perder funcionalidades */}
+      {/* --- MODALES DE CONTACTO / DONAR (RESTRICTAMENTE TUS ORIGINALES) --- */}
       {modalAbierto === 'contacto' && (
         <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
-          <div className={`w-[360px] flex flex-col ${cConfigModalBg} rounded-[8px] overflow-hidden relative`}>
+          <div className={`w-[360px] flex flex-col ${cConfigModalBg} rounded-[8px] overflow-hidden border border-gray-400`}>
             <div className={`h-[35px] ${cConfigInnerBg} flex justify-between items-center px-[12px] border-b ${cConfigBorder}`}>
-              <span className="text-[13px]">Contacto</span>
+              <span className="text-[13px]">Soporte</span>
               <button onClick={() => setModalAbierto('')}>✕</button>
             </div>
             <div className={`p-[25px] flex flex-col items-center border border-[#E67E22] m-[10px] rounded-[4px] ${cConfigInnerBg}`}>
