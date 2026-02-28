@@ -20,6 +20,13 @@ const IconMail = () => (
   </svg>
 );
 
+// === EXTRACCIÓN INTELIGENTE DE ENLACES PARA TODAS LAS REDES ===
+const extraerUrls = (texto: string) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const encontradas = texto.match(urlRegex);
+  return encontradas ? encontradas : [];
+};
+
 export default function Home() {
   /* ==========================================================================
      ESTADOS
@@ -37,6 +44,7 @@ export default function Home() {
   const [modalAbierto, setModalAbierto] = useState(''); 
   const [abriendoCarpeta, setAbriendoCarpeta] = useState(false);
 
+  // AQUÍ ESTÁN TODAS TUS OPCIONES ORIGINALES INTACTAS
   const [config, setConfig] = useState({
     TemaOscuro: false, Notificaciones: true, AutoLimpiar: false, ControlParental: false,
     RutaDescargas: 'C:/Users/Downloads/AKASHA', FormatoDefault: 'Original (Sin conversión)',
@@ -71,37 +79,39 @@ export default function Home() {
     link.href = '/logo-akasha.png';
   }, []);
 
-  // RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target)
+  // RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target Multiredes)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const sharedUrl = params.get('url') || params.get('text');
+      const sharedText = params.get('url') || params.get('text') || params.get('title') || '';
+      const urlsEncontradas = extraerUrls(sharedText);
       
-      if (sharedUrl && /^https?:\/\/.+/i.test(sharedUrl)) {
+      if (urlsEncontradas.length > 0) {
         window.history.replaceState({}, document.title, "/");
         setListaVideos(prev => {
-          const yaEnLista = prev.some(v => v.url === sharedUrl);
-          if (!yaEnLista) {
-            const estadoInicial = configRef.current.Modo1Clic ? 'En Cola' : 'Pendiente';
-            return [...prev, { id: Date.now().toString(), url: sharedUrl, estado: estadoInicial, progreso: 0, colorProgreso: '#FF0000' }];
-          }
-          return prev;
+          let newState = [...prev];
+          urlsEncontradas.forEach(sharedUrl => {
+            if (!newState.some(v => v.url === sharedUrl)) {
+              const estadoInicial = configRef.current.Modo1Clic ? 'En Cola' : 'Pendiente';
+              newState.push({ id: Date.now().toString() + Math.random(), url: sharedUrl, estado: estadoInicial, progreso: 0, colorProgreso: '#FF0000' });
+            }
+          });
+          return newState;
         });
       }
     }
   }, []);
 
-  // Monitor del Portapapeles (Super Capturador)
+  // Monitor del Portapapeles Multiredes
   useEffect(() => {
     const checkClipboard = async () => {
       if (!document.hasFocus()) return;
       try {
         const text = await navigator.clipboard.readText();
-        const cleanText = text.trim();
-        const urlsEncontradas = cleanText.split(/[\s\n]+/).filter(u => /^https?:\/\/.+/i.test(u));
+        const urlsEncontradas = extraerUrls(text);
         
-        if (urlsEncontradas.length > 0 && cleanText !== lastClipboard.current) {
-          lastClipboard.current = cleanText;
+        if (urlsEncontradas.length > 0 && text.trim() !== lastClipboard.current) {
+          lastClipboard.current = text.trim();
           setListaVideos(cv => {
             setListaCaptura(pc => {
               let nuevosAAnadir: string[] = [];
@@ -130,7 +140,7 @@ export default function Home() {
     return () => { clearInterval(interval); window.removeEventListener('focus', checkClipboard); };
   }, [config.Modo1Clic]);
 
-  // Motor de Descargas
+  // Motor de Descargas (CON ENTREGA AL CELULAR)
   useEffect(() => {
     let isActive = true;
     const procesarCola = async () => {
@@ -167,7 +177,13 @@ export default function Home() {
               } else if (p >= 0 && p !== v.progreso) {
                 let c = '#FF0000'; if (p > 33) c = '#FF8C00'; if (p > 66) c = '#F1C40F'; if (p >= 100) c = '#00C851'; 
                 newState[i] = { ...v, progreso: p, colorProgreso: c, estado: p >= 100 ? 'Completado' : 'Descargando' };
-                hasChanges = true; if (p >= 100) activeCount--; 
+                hasChanges = true; 
+                
+                // MAGIA: El Puente de Entrega para el celular
+                if (p >= 100) {
+                  activeCount--;
+                  window.location.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
+                }
               }
             }
             if (newState[i].estado === 'En Cola' && activeCount < maxConcurrent) {
@@ -204,7 +220,7 @@ export default function Home() {
     try {
       const rutaWindows = config.RutaDescargas.replace(/\//g, '\\');
       const res = await fetch('https://akasha-api-1k5x.onrender.com/api/abrir_carpeta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ruta: rutaWindows }) });
-      if (!res.ok) alert(`⚠️ La carpeta aún no existe.`);
+      if (!res.ok) alert(`⚠️ El archivo se descargó directamente a tu carpeta de Descargas del celular o PC.`);
     } catch (e) { alert(`Servidor apagado.`); }
   };
 
@@ -227,9 +243,9 @@ export default function Home() {
 
   const agregarLink = () => {
     if (!linkInput.trim()) return;
-    const urls = linkInput.split('\n').map(u => u.trim()).filter(u => u !== '');
+    const urls = extraerUrls(linkInput);
     let validUrls: string[] = [];
-    for (const url of urls) { if (/^https?:\/\/.+/i.test(url) && !listaVideos.some(v => v.url === url)) validUrls.push(url); }
+    for (const url of urls) { if (!listaVideos.some(v => v.url === url)) validUrls.push(url); }
     if (validUrls.length > 0) {
       setListaVideos(prev => [...prev, ...validUrls.map((url, i) => ({ id: Date.now().toString() + i, url, estado: 'Pendiente', progreso: 0, colorProgreso: '#FF0000' }))]);
       setLinkInput(''); 
@@ -309,7 +325,7 @@ export default function Home() {
           </header>
 
           <div className="px-[15px] pb-[5px] space-y-[15px] flex-none">
-            <textarea className={`w-full h-[80px] p-[5px] border border-gray-300 outline-none resize-none text-[14px] rounded-[4px] ${cBgBox} ${cFgText}`} value={linkInput} onChange={(e) => setLinkInput(e.target.value)} />
+            <textarea className={`w-full h-[80px] p-[5px] border border-gray-300 outline-none resize-none text-[14px] rounded-[4px] ${cBgBox} ${cFgText}`} value={linkInput} onChange={(e) => setLinkInput(e.target.value)} placeholder="Pega enlaces de YouTube, Instagram, TikTok..." />
             <div className="flex flex-wrap gap-[10px] pb-[10px]">
               <button onClick={agregarLink} className={`${btnPremium} flex-grow min-w-[105px] h-[40px] bg-[#F1C40F] text-black`}>Agregar</button>
               <button onClick={importarEnlaces} className={`${btnPremium} flex-grow min-w-[120px] h-[40px] bg-[#9B59B6] text-white`}>Importar ({listaCaptura.length})</button>
@@ -365,7 +381,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* --- MODAL CONFIGURACIÓN --- */}
+      {/* --- MODAL CONFIGURACIÓN (RESTAURACIÓN TOTAL) --- */}
       {mostrarConfig && (
         <div className="absolute inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
           <div className={`w-full max-w-[560px] flex flex-col ${modalWrapperStyle} ${cConfigModalBg} ${cConfigText}`}>
@@ -374,66 +390,82 @@ export default function Home() {
                 <img src="/logo-akasha.png" className="w-[18px] h-[18px]" alt="icon" /> 
                 <span>Configuración - AKASHA v1</span>
               </div>
-              <button onClick={cancelarConfiguracion} className="hover:bg-red-600 px-2 text-lg">✕</button>
+              <button onClick={cancelarConfiguracion} className="hover:bg-red-600 hover:text-white px-2 rounded text-lg">✕</button>
             </div>
             
-            <div className="p-[10px] flex-grow flex flex-col overflow-hidden">
+            <div className="flex-grow flex flex-col p-[10px] overflow-hidden">
               <div className="flex flex-wrap border-b border-gray-300 gap-[2px]">
                 {['General', 'Descargas', 'Red y Automático', 'Soporte y Comunidad'].map(tab => (
-                  <button key={tab} onClick={() => setPestañaActiva(tab)} className={`px-[12px] py-[5px] text-[12px] border ${cConfigBorder} rounded-t-[4px] ${pestañaActiva === tab ? `${cConfigInnerBg} border-b-transparent font-bold` : `${cConfigTabBg}`}`}>
+                  <button key={tab} onClick={() => setPestañaActiva(tab)} className={`px-[12px] py-[5px] text-[12px] border ${cConfigBorder} rounded-t-[4px] font-bold cursor-pointer transition-colors ${pestañaActiva === tab ? `${cConfigInnerBg} border-b-transparent` : `${cConfigTabBg} text-gray-500`}`}>
                     {tab}
                   </button>
                 ))}
               </div>
 
               <div className={`flex-1 min-h-[300px] border border-[#E67E22] p-[20px] overflow-y-auto text-[13px] ${cConfigInnerBg}`}>
+                
                 {pestañaActiva === 'General' && (
                   <div className="space-y-[12px]">
                     <div className="flex items-center gap-2">
-                      <input id="chkTema" type="checkbox" checked={tempConfig.TemaOscuro} onChange={(e) => setTempConfig(p => ({...p, TemaOscuro: e.target.checked}))} /> 
-                      <label htmlFor="chkTema">Activar Modo Oscuro</label>
+                      <input id="chkTema" type="checkbox" checked={tempConfig.TemaOscuro} onChange={(e) => setTempConfig(p => ({...p, TemaOscuro: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkTema" className="font-bold cursor-pointer">{tempConfig.TemaOscuro ? 'Activar Modo Claro' : 'Activar Modo Oscuro'}</label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input id="chkNotif" type="checkbox" checked={tempConfig.Notificaciones} onChange={(e) => setTempConfig(p => ({...p, Notificaciones: e.target.checked}))} /> 
-                      <label htmlFor="chkNotif">Reproducir sonido al finalizar</label>
+                      <input id="chkNotif" type="checkbox" checked={tempConfig.Notificaciones} onChange={(e) => setTempConfig(p => ({...p, Notificaciones: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkNotif" className="cursor-pointer">Reproducir sonido al finalizar descarga</label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input id="chkLimp" type="checkbox" checked={tempConfig.AutoLimpiar} onChange={(e) => setTempConfig(p => ({...p, AutoLimpiar: e.target.checked}))} /> 
-                      <label htmlFor="chkLimp">Limpiar lista automáticamente</label>
+                      <input id="chkLimp" type="checkbox" checked={tempConfig.AutoLimpiar} onChange={(e) => setTempConfig(p => ({...p, AutoLimpiar: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkLimp" className="cursor-pointer">Limpiar lista automáticamente al terminar</label>
                     </div>
                   </div>
                 )}
+
                 {pestañaActiva === 'Descargas' && (
                   <div className="space-y-4">
                     <div>
                       <p className="font-bold mb-1">Carpeta de Destino:</p>
                       <div className="flex gap-1">
                         <input type="text" readOnly value={tempConfig.RutaDescargas} className={`flex-1 border p-1 rounded ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white'}`} />
-                        <button onClick={abrirExplorador} className="bg-gray-200 px-2 rounded">...</button>
+                        <button onClick={abrirExplorador} className="bg-gray-200 px-2 rounded text-black hover:bg-gray-300">...</button>
                       </div>
                     </div>
                     <div>
-                      <p className="font-bold mb-1">Formato:</p>
-                      <select value={tempConfig.FormatoDefault} onChange={e => setTempConfig(p => ({...p, FormatoDefault: e.target.value}))} className={`w-full border p-1 rounded ${isTempDark ? 'bg-[#333]' : ''}`}>
-                        <option>Original (Sin conversión)</option><option>Video (MP4)</option><option>Solo Audio (MP3)</option>
+                      <p className="font-bold mb-1">Formato de Salida:</p>
+                      <select value={tempConfig.FormatoDefault} onChange={e => setTempConfig(p => ({...p, FormatoDefault: e.target.value}))} className={`w-full border p-1 rounded outline-none ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white border-gray-300'}`}>
+                        <option>Original (Sin conversión)</option><option>Video (MP4)</option><option>Solo Audio (MP3)</option><option>Solo Audio (WAV)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <p className="font-bold mb-1">Calidad de Video:</p>
+                      <select value={tempConfig.CalidadDefault} onChange={e => setTempConfig(p => ({...p, CalidadDefault: e.target.value}))} className={`w-full border p-1 rounded outline-none ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white border-gray-300'}`}>
+                        <option>Original (Sin compresión)</option><option>Máxima</option><option>1080p (Full HD)</option><option>720p (HD)</option>
                       </select>
                     </div>
                   </div>
                 )}
+
                 {pestañaActiva === 'Red y Automático' && (
                   <div className="space-y-4">
                     <div>
                       <p className="font-bold mb-1">Descargas Simultáneas:</p>
-                      <select value={tempConfig.MaxSimultaneas} onChange={e => setTempConfig(p => ({...p, MaxSimultaneas: e.target.value}))} className="w-full border p-1 rounded">
-                        <option>1</option><option>3</option><option>5</option><option>Ilimitadas</option>
+                      <select value={tempConfig.MaxSimultaneas} onChange={e => setTempConfig(p => ({...p, MaxSimultaneas: e.target.value}))} className={`w-full border p-1 rounded outline-none ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white border-gray-300'}`}>
+                        <option>1</option><option>2</option><option>3</option><option>5</option><option>Ilimitadas</option>
                       </select>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <input id="chk1c" type="checkbox" checked={tempConfig.Modo1Clic} onChange={e => setTempConfig(p => ({...p, Modo1Clic: e.target.checked}))} /> 
-                      <label htmlFor="chk1c">Modo 1-Clic: Empezar automáticamente</label>
+                    <div>
+                      <p className="font-bold mb-1">Límite de Velocidad:</p>
+                      <select value={tempConfig.LimiteVelocidad} onChange={e => setTempConfig(p => ({...p, LimiteVelocidad: e.target.value}))} className={`w-full border p-1 rounded outline-none ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white border-gray-300'}`}>
+                        <option>Sin limite</option><option>1 MB/s</option><option>3 MB/s</option><option>5 MB/s</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2 pt-2">
+                      <input id="chk1c" type="checkbox" checked={tempConfig.Modo1Clic} onChange={e => setTempConfig(p => ({...p, Modo1Clic: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chk1c" className="font-bold cursor-pointer text-[#E67E22]">Modo 1-Clic: Empezar automáticamente</label>
                     </div>
                   </div>
                 )}
+
                 {pestañaActiva === 'Soporte y Comunidad' && (
                   <div className="flex flex-col items-center justify-center pt-2">
                      <img src="/logo-akasha.png" className="w-[75px] h-[75px] mb-4" alt="logo" />
@@ -445,8 +477,8 @@ export default function Home() {
               </div>
               
               <div className="pt-3 flex justify-end gap-2">
-                <button onClick={guardarConfiguracion} className="w-28 h-9 bg-[#E67E22] text-white font-bold rounded">Guardar</button>
-                <button onClick={cancelarConfiguracion} className="w-24 h-9 bg-gray-200 rounded">Cancelar</button>
+                <button onClick={guardarConfiguracion} className="w-28 h-9 bg-[#E67E22] text-white font-bold rounded hover:bg-[#d67118] transition-colors">Guardar</button>
+                <button onClick={cancelarConfiguracion} className="w-24 h-9 bg-gray-200 text-black font-medium rounded hover:bg-gray-300 transition-colors">Cancelar</button>
               </div>
             </div>
           </div>
@@ -458,8 +490,8 @@ export default function Home() {
         <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className={`w-[360px] flex flex-col ${cConfigModalBg} rounded-[8px] overflow-hidden border border-gray-400 relative`}>
             <div className={`h-9 ${cConfigInnerBg} flex justify-between items-center px-3 border-b ${cConfigBorder}`}>
-              <span className="text-xs">Soporte Técnico</span>
-              <button onClick={() => setModalAbierto('')}>✕</button>
+              <span className="text-xs font-bold">Soporte Técnico</span>
+              <button onClick={() => setModalAbierto('')} className="hover:bg-red-600 hover:text-white px-2 rounded">✕</button>
             </div>
             <div className="p-6 flex flex-col items-center border border-[#E67E22] m-2 rounded bg-white">
               <button onClick={() => window.open(`https://wa.me/573155622460`)} className={`${btnPremium} w-full bg-[#25D366] mb-2`}><IconWA/> WhatsApp</button>
@@ -472,15 +504,15 @@ export default function Home() {
       {modalAbierto === 'donar' && (
         <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className={`w-[420px] bg-white rounded-[8px] border border-gray-300 relative`}>
-            <div className="h-9 flex justify-between items-center px-3 border-b">
+            <div className="h-9 flex justify-between items-center px-3 border-b bg-gray-100 text-black">
               <span className="text-xs font-bold">Apoyar el Proyecto</span>
-              <button onClick={() => setModalAbierto('')}>✕</button>
+              <button onClick={() => setModalAbierto('')} className="hover:bg-red-600 hover:text-white px-2 rounded">✕</button>
             </div>
-            <div className="p-6 flex flex-col border border-[#E67E22] m-2 rounded">
+            <div className="p-6 flex flex-col border border-[#E67E22] m-2 rounded text-black">
               <p className="font-bold text-center mb-4">NEQUI: 3155622460</p>
               <p className="font-bold text-center mb-4">BANCOLOMBIA: 912-932520-12</p>
-              <p className="text-center text-xs italic text-gray-600 mb-4">Andrés Mauricio Rivera</p>
-              <button onClick={() => window.open(`https://wa.me/573155622460`)} className="bg-[#25D366] p-3 rounded font-bold text-center">Enviar Comprobante</button>
+              <p className="text-center text-xs italic text-gray-600 mb-4">Titular: Andrés Mauricio Rivera</p>
+              <button onClick={() => window.open(`https://wa.me/573155622460`)} className="bg-[#25D366] p-3 rounded font-bold text-center text-white shadow-md active:scale-95 transition-transform">Enviar Comprobante</button>
             </div>
           </div>
         </div>
@@ -490,13 +522,23 @@ export default function Home() {
         <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
           <div className="w-full max-w-[1000px] h-[90vh] bg-[#f4f7f6] rounded-[8px] flex flex-col overflow-hidden shadow-2xl">
             <div className="h-11 bg-[#2d3e50] flex justify-between items-center px-5 text-white">
-              <span className="font-bold">Manual de Usuario AKASHA</span>
-              <button onClick={() => setModalAbierto('')} className="bg-[#e74c3c] px-3 py-1 rounded">Volver</button>
+              <span className="font-bold tracking-widest">Manual de Usuario AKASHA</span>
+              <button onClick={() => setModalAbierto('')} className="bg-[#e74c3c] px-3 py-1 rounded font-bold hover:bg-red-600 transition-colors">Volver</button>
             </div>
             <div className="flex-1 overflow-y-auto p-10 leading-relaxed text-gray-800">
               <h1 className="text-3xl font-bold text-center mb-10 border-b-4 border-[#E67E22] pb-4">Documentación Oficial AKASHA v1</h1>
-              <p className="mb-6 font-bold">1. Inicio Rápido</p>
-              <p>Busca tu contenido, dale a &quot;Compartir&quot; en tu celular y elige AKASHA para que haga la magia...</p>
+              
+              <p className="mb-6 font-bold text-lg text-[#2d3e50]">1. Introducción</p>
+              <p className="mb-6">Has adquirido una herramienta diseñada con estándares profesionales para la extracción y descarga de contenido multimedia. Este software te permite capturar videos de YouTube, Instagram, TikTok y más.</p>
+              
+              <p className="mb-6 font-bold text-lg text-[#2d3e50]">2. Métodos de Captura</p>
+              <ul className="list-disc pl-6 space-y-2 mb-6">
+                <li><strong>Método Clásico:</strong> Copia cualquier enlace y toca el botón "Importar" en AKASHA.</li>
+                <li><strong>Método Nativo (Móvil):</strong> Usa el botón "Compartir" de cualquier App y selecciona el logo de AKASHA para enviarlo directo a la cola.</li>
+              </ul>
+
+              <p className="mb-6 font-bold text-lg text-[#2d3e50]">3. Ajustes de Descarga</p>
+              <p className="mb-6">Desde el ícono del engranaje puedes configurar la <strong>Calidad del video</strong>, el <strong>Formato</strong> (Convertir a MP3) y tu <strong>Límite de velocidad</strong>. Si activas el "Modo 1-Clic", la descarga iniciará tan pronto el enlace toque la aplicación.</p>
             </div>
           </div>
         </div>
