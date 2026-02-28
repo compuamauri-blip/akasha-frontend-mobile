@@ -58,14 +58,12 @@ export default function Home() {
      EFECTOS SECUNDARIOS
      ========================================================================== */
   
-  // 1. Splash Screen
   useEffect(() => {
     const t1 = setTimeout(() => setFadeOut(true), 2500);
     const t2 = setTimeout(() => setShowSplash(false), 3500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  // 2. Metadatos
   useEffect(() => {
     document.title = "AKASHA Downloader Pro";
     let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
@@ -73,21 +71,17 @@ export default function Home() {
     link.href = '/logo-akasha.png';
   }, []);
 
-  // 3. RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target) - ¡NUEVO!
+  // RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      // Extrae la URL si viene desde el menú nativo de Compartir del celular
       const sharedUrl = params.get('url') || params.get('text');
       
       if (sharedUrl && /^https?:\/\/.+/i.test(sharedUrl)) {
-        // Limpiamos la barra de direcciones para que no se repita si recargas la página
         window.history.replaceState({}, document.title, "/");
-        
         setListaVideos(prev => {
           const yaEnLista = prev.some(v => v.url === sharedUrl);
           if (!yaEnLista) {
-            // Si Modo 1-clic está activo, se auto-encola. Si no, se queda Pendiente en la tabla
             const estadoInicial = configRef.current.Modo1Clic ? 'En Cola' : 'Pendiente';
             return [...prev, { id: Date.now().toString(), url: sharedUrl, estado: estadoInicial, progreso: 0, colorProgreso: '#FF0000' }];
           }
@@ -97,7 +91,7 @@ export default function Home() {
     }
   }, []);
 
-  // 4. Monitor del Portapapeles (Se mantiene por si prefieren copiar a mano)
+  // Monitor del Portapapeles (Super Capturador)
   useEffect(() => {
     const checkClipboard = async () => {
       if (!document.hasFocus()) return;
@@ -105,11 +99,12 @@ export default function Home() {
         const text = await navigator.clipboard.readText();
         const cleanText = text.trim();
         const urlsEncontradas = cleanText.split(/[\s\n]+/).filter(u => /^https?:\/\/.+/i.test(u));
+        
         if (urlsEncontradas.length > 0 && cleanText !== lastClipboard.current) {
           lastClipboard.current = cleanText;
           setListaVideos(cv => {
             setListaCaptura(pc => {
-              let nuevosAAnadir = [];
+              let nuevosAAnadir: string[] = [];
               for (const url of urlsEncontradas) {
                 if (!cv.some(v => v.url === url) && !pc.includes(url)) nuevosAAnadir.push(url);
               }
@@ -135,7 +130,7 @@ export default function Home() {
     return () => { clearInterval(interval); window.removeEventListener('focus', checkClipboard); };
   }, [config.Modo1Clic]);
 
-  // 5. Motor de Descargas
+  // Motor de Descargas
   useEffect(() => {
     let isActive = true;
     const procesarCola = async () => {
@@ -217,7 +212,10 @@ export default function Home() {
     setAbriendoCarpeta(true);
     try {
       const res = await fetch('https://akasha-api-1k5x.onrender.com/api/explorar');
-      if (res.ok) setTempConfig(prev => ({ ...prev, RutaDescargas: (await res.json()).ruta }));
+      if (res.ok) {
+        const data = await res.json();
+        setTempConfig(prev => ({ ...prev, RutaDescargas: data.ruta }));
+      }
     } catch (e) { alert("Servidor apagado."); } finally { setAbriendoCarpeta(false); }
   };
 
@@ -261,7 +259,7 @@ export default function Home() {
   };
 
   /* ==========================================================================
-     ESTILOS Y RENDERIZADO VISUAL (INTACTO)
+     ESTILOS Y RENDERIZADO VISUAL
      ========================================================================== */
   const isDark = config.TemaOscuro;
   const isTempDark = tempConfig.TemaOscuro;
@@ -275,7 +273,6 @@ export default function Home() {
   const cConfigTabBg = isTempDark ? 'bg-[#2D2D2D]' : 'bg-gray-100';
   const cConfigBorder = isTempDark ? 'border-[#444]' : 'border-gray-300';
   const btnPremium = "font-bold text-[14px] py-[8px] px-[15px] rounded-[8px] shadow-[0_3px_0_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_rgba(0,0,0,0.2)] transition-all flex items-center justify-center text-center cursor-pointer";
-  const nativeInput = `border rounded-[3px] outline-none px-2 transition-colors duration-200 ${isTempDark ? 'border-[#555] bg-[#333] text-white focus:border-[#0078D7]' : 'border-gray-300 bg-white text-black focus:border-[#0078D7]'}`;
   const modalWrapperStyle = `rounded-[8px] border border-gray-300 shadow-2xl overflow-hidden`;
 
   return (
@@ -499,7 +496,7 @@ export default function Home() {
             <div className="flex-1 overflow-y-auto p-10 leading-relaxed text-gray-800">
               <h1 className="text-3xl font-bold text-center mb-10 border-b-4 border-[#E67E22] pb-4">Documentación Oficial AKASHA v1</h1>
               <p className="mb-6 font-bold">1. Inicio Rápido</p>
-              <p>Busca tu contenido, dale a "Compartir" en tu celular y elige AKASHA para que haga la magia...</p>
+              <p>Busca tu contenido, dale a &quot;Compartir&quot; en tu celular y elige AKASHA para que haga la magia...</p>
             </div>
           </div>
         </div>
