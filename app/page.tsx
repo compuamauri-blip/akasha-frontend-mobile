@@ -230,26 +230,21 @@ export default function Home() {
                 hasChanges = true;
                 
                 // =========================================================================
-                // CORRECCIÓN EXACTA 1: AUTO-DESCARGA CON BLOB SILENCIOSO (Evita pantalla negra)
+                // CORRECCIÓN EXACTA 1: AUTO-DESCARGA NATIVA MÓVIL (Con verificación previa)
                 // =========================================================================
                 if (p >= 100 && v.progreso < 100) {
                   activeCount--; 
                   setTimeout(async () => {
                     try {
-                      const response = await fetch(`https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`);
-                      const blob = await response.blob();
-                      const blobUrl = window.URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = blobUrl;
-                      link.setAttribute('download', `AKASHA_Media_${v.id}`);
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+                      const fileUrl = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
+                      const check = await fetch(fileUrl, { method: 'HEAD' });
+                      if (check.ok) {
+                        window.location.href = fileUrl;
+                      }
                     } catch (error) {
-                      console.error("Fallo auto-descarga blob", error);
+                      console.error("Auto-descarga omitida temporalmente", error);
                     }
-                  }, 500);
+                  }, 2000); // 2 segundos de gracia para que Render termine de unir audio y video
                 }
               }
             }
@@ -501,25 +496,25 @@ export default function Home() {
                       </>
                     )}
                     {/* =========================================================================
-                        CORRECCIÓN EXACTA 2: BOTÓN MANUAL CON BLOB SILENCIOSO (Evita pantalla negra)
+                        CORRECCIÓN EXACTA 2: BOTÓN MANUAL CON VERIFICACIÓN PREVIA (Evita error 404)
                         ========================================================================= */}
                     {v.estado === 'Completado' && (
                       <div className="flex gap-[4px] items-center justify-center">
                         <button type="button" onClick={async (e) => {
                           e.preventDefault();
                           try {
-                            const response = await fetch(`https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`);
-                            const blob = await response.blob();
-                            const blobUrl = window.URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = blobUrl;
-                            link.setAttribute('download', `AKASHA_Media_${v.id}`);
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+                            const fileUrl = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
+                            const check = await fetch(fileUrl, { method: 'HEAD' });
+                            
+                            if (!check.ok) {
+                              alert("⏳ Procesando... El servidor está uniendo el video y el audio de alta calidad.\n\nEspera unos 15 segundos y vuelve a presionar esta flecha para guardar.");
+                              return;
+                            }
+                            
+                            // Descarga nativa limpia. El navegador celular lo interceptará automáticamente sin cambiar la pantalla.
+                            window.location.href = fileUrl;
                           } catch (error) {
-                            console.error("Fallo descarga manual blob", error);
+                            alert("⚠️ Comprobando archivo... Intenta de nuevo en un momento.");
                           }
                         }} className="w-[28px] h-[28px] bg-[#E8F8F5] border border-[#2ECC71] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#D5F5E3] shadow-sm active:scale-90 transition-transform" title="Guardar a la Galería">
                           <span className="font-bold text-[14px]">⬇️</span>
