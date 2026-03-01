@@ -61,6 +61,9 @@ export default function Home() {
   });
   const [tempConfig, setTempConfig] = useState({ ...config });
 
+  /* ==========================================================================
+     REFERENCIAS
+     ========================================================================== */
   const lastClipboard = useRef('');
   const listaVideosRef = useRef(listaVideos);
   const configRef = useRef(config);
@@ -112,7 +115,7 @@ export default function Home() {
     link.href = '/logo-akasha.png';
   }, []);
 
-  // RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target Multiredes)
+  // RECEPTOR INVISIBLE DE COMPARTIR
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -135,7 +138,7 @@ export default function Home() {
     }
   }, [isLoaded]);
 
-  // Monitor del Portapapeles (Capturador Inteligente)
+  // CAPTURADOR INTELIGENTE
   useEffect(() => {
     const checkClipboard = async () => {
       if (!document.hasFocus() || !isLoaded) return;
@@ -230,28 +233,21 @@ export default function Home() {
                 hasChanges = true;
                 
                 // =========================================================================
-                // CORRECCIÓN EXACTA: AUTO-DESCARGA CON BLOB SILENCIOSO 
+                // CORRECCIÓN EXACTA: AUTO-DESCARGA NATIVA (MÉTODO DEFINITIVO ASSIGN)
                 // =========================================================================
                 if (p >= 100 && v.progreso < 100) {
                   activeCount--; 
                   setTimeout(async () => {
                     try {
-                      const response = await fetch(`https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`);
-                      if (response.ok) {
-                        const blob = await response.blob();
-                        const blobUrl = window.URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = blobUrl;
-                        link.setAttribute('download', `AKASHA_Media_${v.id}.mp4`);
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+                      const fileUrl = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
+                      const check = await fetch(fileUrl, { method: 'HEAD' });
+                      if (check.ok) {
+                        window.location.assign(fileUrl);
                       }
                     } catch (error) {
-                      console.error("Fallo auto-descarga blob", error);
+                      console.error("Fallo auto-descarga", error);
                     }
-                  }, 1500);
+                  }, 2000);
                 }
               }
             }
@@ -285,7 +281,7 @@ export default function Home() {
         });
       }
       
-      if (isActive) setTimeout(procesarCola, 1500);
+      if (isActive) setTimeout(procesarCola, 1000);
     };
     
     procesarCola();
@@ -503,7 +499,7 @@ export default function Home() {
                       </>
                     )}
                     {/* =========================================================================
-                        CORRECCIÓN EXACTA: BOTÓN MANUAL CON BLOB (Cero pantallas negras)
+                        CORRECCIÓN EXACTA: BOTÓN MANUAL NATIVO (MÉTODO DEFINITIVO ASSIGN)
                         ========================================================================= */}
                     {v.estado === 'Completado' && (
                       <div className="flex gap-[4px] items-center justify-center">
@@ -515,28 +511,20 @@ export default function Home() {
                           
                           try {
                             const fileUrl = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                            const response = await fetch(fileUrl);
+                            const response = await fetch(fileUrl, { method: 'HEAD' });
                             
                             if (!response.ok) {
                               btn.innerHTML = originalHtml;
-                              alert("⚠️ El archivo no existe en el servidor.\n\nEsto sucede si Render borró el archivo temporal o si falló el proceso interno.");
+                              alert("⚠️ El archivo aún se está procesando en el servidor.\n\nEspera unos segundos y vuelve a intentar.");
                               return;
                             }
                             
-                            const blob = await response.blob();
-                            const blobUrl = window.URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = blobUrl;
-                            link.setAttribute('download', `AKASHA_Media_${v.id}.mp4`);
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
-                            btn.innerHTML = originalHtml;
+                            window.location.assign(fileUrl);
+                            setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
                             
                           } catch (error) {
                             btn.innerHTML = originalHtml;
-                            alert("⚠️ Error de red. Intenta de nuevo.");
+                            alert("⚠️ Error de conexión con el servidor.");
                           }
                         }} className="w-[28px] h-[28px] bg-[#E8F8F5] border border-[#2ECC71] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#D5F5E3] shadow-sm active:scale-90 transition-transform" title="Guardar a la Galería">
                           <span className="font-bold text-[14px]">⬇️</span>
