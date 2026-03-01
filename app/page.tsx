@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 
 /* ==========================================================================
-   COMPONENTES SVG ORIGINALES (RESTURADOS AL 100%)
+   COMPONENTES SVG EMPAQUETADOS
+   Iconos optimizados para no depender de librerías externas
    ========================================================================== */
 const IconGear = ({ fill }: { fill: string }) => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill={fill}>
@@ -29,8 +30,9 @@ const extraerUrls = (texto: string) => {
 
 export default function Home() {
   /* ==========================================================================
-     ESTADOS (RESTAURADOS AL 100%)
+     ESTADOS DE LA APLICACIÓN
      ========================================================================== */
+  const [isLoaded, setIsLoaded] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
 
@@ -44,15 +46,25 @@ export default function Home() {
   const [modalAbierto, setModalAbierto] = useState(''); 
   const [abriendoCarpeta, setAbriendoCarpeta] = useState(false);
 
-  // CONFIGURACIÓN ORIGINAL COMPLETA E INTACTA
   const [config, setConfig] = useState({
-    TemaOscuro: false, Notificaciones: true, AutoLimpiar: false, ControlParental: false,
-    RutaDescargas: 'C:/Users/Downloads/AKASHA', FormatoDefault: 'Original (Sin conversión)',
-    CalidadDefault: 'Original (Sin compresión)', Subtitulos: false, MaxSimultaneas: '1',
-    LimiteVelocidad: 'Sin limite', VideosPrivados: false, Modo1Clic: false
+    TemaOscuro: false, 
+    Notificaciones: true, 
+    AutoLimpiar: false, 
+    ControlParental: false,
+    RutaDescargas: 'C:/Users/Downloads/AKASHA', 
+    FormatoDefault: 'Original (Sin conversión)',
+    CalidadDefault: 'Original (Sin compresión)', 
+    Subtitulos: false, 
+    MaxSimultaneas: '1',
+    LimiteVelocidad: 'Sin limite', 
+    VideosPrivados: false, 
+    Modo1Clic: false
   });
   const [tempConfig, setTempConfig] = useState({ ...config });
 
+  /* ==========================================================================
+     REFERENCIAS (Para acceso seguro en efectos asíncronos)
+     ========================================================================== */
   const lastClipboard = useRef('');
   const listaVideosRef = useRef(listaVideos);
   const configRef = useRef(config);
@@ -63,7 +75,29 @@ export default function Home() {
   const videosCompletados = listaVideos.filter(v => v.estado === 'Completado').length;
 
   /* ==========================================================================
-     EFECTOS SECUNDARIOS Y MOTORES (RESTAURADOS Y POTENCIADOS)
+     SISTEMA DE MEMORIA LOCAL (Soluciona el reseteo al compartir)
+     ========================================================================== */
+  useEffect(() => {
+    const savedVideos = localStorage.getItem('akasha_videos');
+    const savedConfig = localStorage.getItem('akasha_config');
+    if (savedVideos) setListaVideos(JSON.parse(savedVideos));
+    if (savedConfig) {
+      const parsedConfig = JSON.parse(savedConfig);
+      setConfig(parsedConfig);
+      setTempConfig(parsedConfig);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('akasha_videos', JSON.stringify(listaVideos));
+      localStorage.setItem('akasha_config', JSON.stringify(config));
+    }
+  }, [listaVideos, config, isLoaded]);
+
+  /* ==========================================================================
+     EFECTOS SECUNDARIOS
      ========================================================================== */
   useEffect(() => {
     const t1 = setTimeout(() => setFadeOut(true), 2500);
@@ -74,13 +108,17 @@ export default function Home() {
   useEffect(() => {
     document.title = "AKASHA Downloader Pro";
     let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
     link.href = '/logo-akasha.png';
   }, []);
 
-  // === NUEVO MOTOR: RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target Multiredes) ===
+  // RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target Multiredes)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (isLoaded && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const sharedText = params.get('url') || params.get('text') || params.get('title') || '';
       const urlsEncontradas = extraerUrls(sharedText);
@@ -99,16 +137,15 @@ export default function Home() {
         });
       }
     }
-  }, []);
+  }, [isLoaded]);
 
-  // === NUEVO MOTOR: MONITOR DEL PORTAPAPELES (Super Capturador Multiredes) ===
+  // Monitor del Portapapeles (Capturador Inteligente)
   useEffect(() => {
     const checkClipboard = async () => {
-      if (!document.hasFocus()) return;
+      if (!document.hasFocus() || !isLoaded) return;
       try {
         const text = await navigator.clipboard.readText();
         const urlsEncontradas = extraerUrls(text);
-        
         if (urlsEncontradas.length > 0 && text.trim() !== lastClipboard.current) {
           lastClipboard.current = text.trim();
           setListaVideos(cv => {
@@ -132,18 +169,24 @@ export default function Home() {
             return cv;
           });
         }
-      } catch (err) {}
+      } catch (err) { }
     };
+    
     const interval = setInterval(checkClipboard, 1000);
     window.addEventListener('focus', checkClipboard);
-    return () => { clearInterval(interval); window.removeEventListener('focus', checkClipboard); };
-  }, [config.Modo1Clic]);
+    return () => { 
+      clearInterval(interval); 
+      window.removeEventListener('focus', checkClipboard); 
+    };
+  }, [config.Modo1Clic, isLoaded]);
 
-  // === NUEVO MOTOR: DESCARGAS Y PUENTE DE ENTREGA (Soluciona el "Video Fantasma" en móvil) ===
+  // Motor Principal de Descargas (Gestión de Cola y Sincronización)
   useEffect(() => {
     let isActive = true;
+
     const procesarCola = async () => {
-      if (!isActive) return;
+      if (!isActive || !isLoaded) return;
+      
       const currentList = listaVideosRef.current;
       const conf = configRef.current;
       const maxConcurrent = conf.MaxSimultaneas === 'Ilimitadas' ? 999 : parseInt(conf.MaxSimultaneas) || 1;
@@ -152,14 +195,19 @@ export default function Home() {
       for (const v of currentList) {
         if (v.estado === 'Descargando') {
           try {
+            // CORRECCIÓN CRÍTICA: Cambiado de 127.0.0.1 al servidor Nube
             const res = await fetch(`https://akasha-api-1k5x.onrender.com/api/progreso/${v.id}`);
-            if (res.ok) { progressUpdates[v.id] = (await res.json()).progreso; }
-          } catch(e) {} 
+            if (res.ok) { 
+              const data = await res.json(); 
+              progressUpdates[v.id] = data.progreso; 
+            }
+          } catch(e) { } 
         }
       }
 
       if (isActive) {
         let descargasATrigger: any[] = [];
+
         setListaVideos(prev => {
           let activeCount = prev.filter(v => v.estado === 'Descargando').length;
           let newState = [...prev];
@@ -168,489 +216,579 @@ export default function Home() {
 
           for (let i = 0; i < newState.length; i++) {
             const v = newState[i];
+            
             if (v.estado === 'Descargando' && progressUpdates[v.id] !== undefined) {
               const p = progressUpdates[v.id];
               if (p < 0) {
                 newState[i] = { ...v, progreso: 0, colorProgreso: '#CC0000', estado: 'Error' };
-                hasChanges = true; activeCount--;
+                hasChanges = true; 
+                activeCount--;
               } else if (p >= 0 && p !== v.progreso) {
-                let c = '#FF0000'; if (p > 33) c = '#FF8C00'; if (p > 66) c = '#F1C40F'; if (p >= 100) c = '#00C851'; 
+                let c = '#FF0000'; 
+                if (p > 33) c = '#FF8C00'; 
+                if (p > 66) c = '#F1C40F'; 
+                if (p >= 100) c = '#00C851'; 
                 
+                newState[i] = { ...v, progreso: p, colorProgreso: c, estado: p >= 100 ? 'Completado' : 'Descargando' };
+                hasChanges = true;
+                
+                // === AUTO DESCARGA AL LLEGAR A 100% ===
                 if (p >= 100 && v.progreso < 100) {
-                  newState[i] = { ...v, progreso: 100, colorProgreso: '#00C851', estado: 'Completado' };
-                  hasChanges = true; activeCount--;
-                  
-                  // === MAGIA: INYECTOR NATIVO DE DESCARGA (Soluciona "Video Fantasma" en Móvil) ===
+                  activeCount--; 
                   setTimeout(() => {
-                    const link = document.createElement('a');
-                    link.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                    link.target = '_blank';
-                    link.download = `Media_${v.id}`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                    window.location.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
                   }, 500);
-                } else if (p < 100) {
-                  newState[i] = { ...v, progreso: p, colorProgreso: c, estado: 'Descargando' };
-                  hasChanges = true;
                 }
               }
             }
+            
             if (newState[i].estado === 'En Cola' && activeCount < maxConcurrent) {
               activeCount++;
               newState[i] = { ...newState[i], estado: 'Descargando', progreso: 1, colorProgreso: '#FF0000' };
-              hasChanges = true; toTrigger.push(newState[i]);
+              hasChanges = true;
+              toTrigger.push(newState[i]);
             }
           }
+          
           descargasATrigger = toTrigger;
           return hasChanges ? newState : prev;
         });
 
         descargasATrigger.forEach(v => {
           fetch('https://akasha-api-1k5x.onrender.com/api/descargar', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: v.url, id_video: v.id, formato: conf.FormatoDefault, ruta_base: conf.RutaDescargas, limite_velocidad: conf.LimiteVelocidad, subtitulos: conf.Subtitulos, calidad: conf.CalidadDefault })
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              url: v.url, 
+              id_video: v.id, 
+              formato: conf.FormatoDefault, 
+              ruta_base: conf.RutaDescargas, 
+              limite_velocidad: conf.LimiteVelocidad, 
+              subtitulos: conf.Subtitulos, 
+              calidad: conf.CalidadDefault 
+            })
           }).catch(()=>{});
         });
       }
-      if (isActive) setTimeout(procesarCola, 1500);
+      
+      if (isActive) setTimeout(procesarCola, 1000);
     };
+    
     procesarCola();
     return () => { isActive = false; };
-  }, []);
+  }, [isLoaded]);
 
   /* ==========================================================================
-     FUNCIONES DE UI (RESTURADAS AL 100%)
+     FUNCIONES Y MANEJADORES DE EVENTOS
      ========================================================================== */
-  const abrirConfiguracion = () => { setTempConfig({ ...config }); setPestañaActiva('General'); setMostrarConfig(true); };
-  const guardarConfiguracion = () => { setConfig({ ...tempConfig }); setMostrarConfig(false); };
+  const abrirConfiguracion = () => { 
+    setTempConfig({ ...config }); 
+    setPestañaActiva('General'); 
+    setMostrarConfig(true); 
+  };
+  
+  const guardarConfiguracion = () => { 
+    setConfig({ ...tempConfig }); 
+    setMostrarConfig(false); 
+  };
+  
   const cancelarConfiguracion = () => setMostrarConfig(false);
 
-  // === ADVERTENCIA DE LIMITACIÓN NATIVO MÓVIL (Corrección del Error de Captura) ===
-  const advertirLimitacionCarpetaMobile = () => {
-    alert("NOTA DE SISTEMA:\n\nDebido a restricciones de seguridad de los navegadores web (Chrome/Safari), la aplicación no puede abrir el explorador de archivos nativo de tu celular directamente.\n\nBusca tus archivos multimedia descargados en tu App de 'Descargas', 'Galería' o 'Archivos' del teléfono.");
+  const advertirMobile = () => {
+    alert("NOTA:\nPor seguridad de tu celular, no se puede abrir el explorador de archivos desde aquí. Tus videos se guardan en tu carpeta nativa de 'Descargas' o en tu 'Galería'.");
   };
 
   const abrirCarpetaReal = async () => {
-    advertirLimitacionCarpetaMobile();
+    try {
+      const rutaWindows = config.RutaDescargas.replace(/\//g, '\\');
+      const res = await fetch('https://akasha-api-1k5x.onrender.com/api/abrir_carpeta', {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ ruta: rutaWindows })
+      });
+      if (!res.ok) advertirMobile();
+    } catch (e) { 
+      advertirMobile();
+    }
   };
 
   const abrirExplorador = async () => {
-    advertirLimitacionCarpetaMobile();
+    setAbriendoCarpeta(true);
+    try {
+      const res = await fetch('https://akasha-api-1k5x.onrender.com/api/explorar');
+      const data = await res.json();
+      if (data.ruta) setTempConfig(prev => ({ ...prev, RutaDescargas: data.ruta }));
+    } catch (e) { 
+      advertirMobile(); 
+    } finally { 
+      setAbriendoCarpeta(false); 
+    }
   };
 
   const importarEnlaces = () => {
     if (listaCaptura.length === 0) return;
-    setLinkInput(prev => prev ? prev + '\n' + listaCaptura.join('\n') : listaCaptura.join('\n'));
-    setListaCaptura([]); setCapturadorActivo(false); 
+    const nuevosEnlaces = listaCaptura.join('\n');
+    setLinkInput(prev => prev ? prev + '\n' + nuevosEnlaces : nuevosEnlaces);
+    setListaCaptura([]); 
+    setCapturadorActivo(false); 
   };
 
   const agregarLink = () => {
     if (!linkInput.trim()) return;
     const urls = extraerUrls(linkInput);
+    
     let validUrls: string[] = [];
-    for (const url of urls) { if (!listaVideos.some(v => v.url === url)) validUrls.push(url); }
+    let errorType = '';
+
+    for (const url of urls) {
+      if (listaVideos.some(v => v.url === url) || validUrls.includes(url)) { 
+        errorType = 'repetida'; 
+        break; 
+      } else { 
+        validUrls.push(url); 
+      }
+    }
+
+    if (errorType === 'repetida') { 
+      alert("La URL ya se encuentra en la lista."); 
+      return; 
+    }
+
     if (validUrls.length > 0) {
-      setListaVideos(prev => [...prev, ...validUrls.map((url, i) => ({ id: Date.now().toString() + i, url, estado: 'Pendiente', progreso: 0, colorProgreso: '#FF0000' }))]);
+      setListaVideos(prev => {
+        const nuevos = validUrls.map((url, i) => ({ 
+          id: Date.now().toString() + i, 
+          url: url, 
+          estado: 'Pendiente', 
+          progreso: 0, 
+          colorProgreso: '#FF0000' 
+        }));
+        return [...prev, ...nuevos];
+      });
       setLinkInput(''); 
     }
   };
 
   const limpiarListaSegura = () => {
-    if (listaVideos.some(v => v.estado === 'Descargando' || v.estado === 'En Cola')) { alert("Espera a finalizar las descargas activas."); return; }
+    if (listaVideos.some(v => v.estado === 'Descargando' || v.estado === 'En Cola')) { 
+      alert("Espera a que finalicen las descargas activas antes de limpiar la lista."); 
+      return; 
+    }
     setListaVideos([]);
   };
 
   const togglePausa = async (id: string) => {
     const video = listaVideos.find(v => v.id === id);
     if (!video) return;
+    
     if (video.estado === 'Descargando') {
       await fetch(`https://akasha-api-1k5x.onrender.com/api/cancelar/${id}`).catch(()=>{});
       setListaVideos(prev => prev.map(v => v.id === id ? { ...v, estado: 'Pausado', colorProgreso: '#FF8C00' } : v));
-    } else {
+    } else if (video.estado === 'Pausado' || video.estado === 'Pendiente' || video.estado === 'Error') {
       setListaVideos(prev => prev.map(v => v.id === id ? { ...v, estado: 'En Cola', colorProgreso: '#FF0000' } : v));
     }
   };
 
   const eliminarVideo = async (id: string) => {
     const video = listaVideos.find(v => v.id === id);
-    if(video && (video.estado === 'Descargando' || video.estado === 'Pausado')) await fetch(`https://akasha-api-1k5x.onrender.com/api/cancelar/${id}`).catch(()=>{});
+    if(video && (video.estado === 'Descargando' || video.estado === 'Pausado')) {
+        await fetch(`https://akasha-api-1k5x.onrender.com/api/cancelar/${id}`).catch(()=>{});
+    }
     setListaVideos(prev => prev.filter(vid => vid.id !== id));
   };
 
   /* ==========================================================================
-     RENDERIZADO VISUAL (RESTURADO AL 100% IDÉNTICO AL ORIGINAL)
+     ESTILOS Y TEMAS DINÁMICOS (Tailwind CSS)
      ========================================================================== */
   const isDark = config.TemaOscuro;
-  const isTempDark = tempConfig.TemaOscuro;
   const cBgApp = isDark ? 'bg-[#1E1E1E]' : 'bg-[#F0F0F0]';
   const cBgBox = isDark ? 'bg-[#2D2D2D]' : 'bg-[#FFFFFF]';
   const cFgText = isDark ? 'text-[#E0E0E0]' : 'text-[#000000]';
   const cListBg = isDark ? 'bg-[#252526]' : 'bg-[#FFFFFF]';
+  
+  const isTempDark = tempConfig.TemaOscuro;
   const cConfigModalBg = isTempDark ? 'bg-[#252526]' : 'bg-[#F9F9F9]';
   const cConfigText = isTempDark ? 'text-[#E0E0E0]' : 'text-[#000000]';
   const cConfigInnerBg = isTempDark ? 'bg-[#1E1E1E]' : 'bg-white';
   const cConfigTabBg = isTempDark ? 'bg-[#2D2D2D]' : 'bg-gray-100';
+  const cConfigTabHover = isTempDark ? 'hover:bg-[#333]' : 'hover:bg-white';
   const cConfigBorder = isTempDark ? 'border-[#444]' : 'border-gray-300';
+  
   const btnPremium = "font-bold text-[14px] py-[8px] px-[15px] rounded-[8px] shadow-[0_3px_0_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_rgba(0,0,0,0.2)] transition-all flex items-center justify-center text-center cursor-pointer";
+  const nativeInput = `border rounded-[3px] outline-none px-2 transition-colors duration-200 ${isTempDark ? 'border-[#555] bg-[#333] text-white focus:border-[#0078D7]' : 'border-gray-300 bg-white text-black focus:border-[#0078D7]'}`;
   const modalWrapperStyle = `rounded-[8px] border border-gray-300 shadow-2xl overflow-hidden`;
 
+  /* ==========================================================================
+     RENDERIZADO (DOM)
+     ========================================================================== */
   return (
-    <main className="relative min-h-screen overflow-hidden">
+    <div className={`min-h-screen flex items-center justify-center p-4 font-sans transition-colors duration-300 ${cBgApp} ${cFgText}`}>
       
-      {showSplash && (
-        <div className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white transition-opacity duration-1000 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
-          <div className="relative w-48 h-48 mb-6 animate-pulse">
-            <img src="/logo-akasha.png" alt="Logo" className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(230,126,34,0.4)]" />
+      {/* --- VENTANA PRINCIPAL --- */}
+      <div className={`w-full max-w-[920px] h-[85vh] min-h-[580px] max-h-[750px] rounded-[8px] shadow-2xl flex flex-col border-2 border-[#E67E22] ${cBgBox}`}>
+        <header className="flex justify-between items-center p-4 flex-wrap gap-2 flex-none">
+          <div className="flex items-center gap-4">
+            <img src="/logo-akasha.png" className="w-[55px] h-[55px] object-contain" alt="logo" onError={(e) => e.currentTarget.style.display = 'none'} />
+            <h1 className="text-[26px] font-bold">AKASHA Downloader v1</h1>
           </div>
-          <h1 className="text-4xl font-extrabold text-[#2d3e50] tracking-widest mb-1">AKASHA</h1>
-          <p className="text-[#E67E22] text-xl font-medium tracking-[0.3em] uppercase mb-12">Downloader</p>
-          <div className="flex space-x-3">
-            <div className="w-3 h-3 bg-[#E67E22] rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-            <div className="w-3 h-3 bg-[#E67E22] rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
-            <div className="w-3 h-3 bg-[#E67E22] rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+          <button type="button" onClick={abrirConfiguracion} className="w-[45px] h-[45px] cursor-pointer flex justify-center items-center transition-all duration-700 hover:rotate-[360deg] active:scale-90" title="Configuración">
+            <IconGear fill={isDark ? '#CCCCCC' : '#555555'} />
+          </button>
+        </header>
+
+        <div className="px-[15px] pb-[5px] space-y-[15px] flex-none">
+          <textarea className={`w-full h-[80px] p-[5px] border border-gray-300 outline-none resize-none text-[14px] rounded-[4px] ${cBgBox} ${cFgText}`} value={linkInput} onChange={(e) => setLinkInput(e.target.value)} />
+          <div className="flex flex-wrap gap-[10px] pb-[10px]">
+            <button type="button" onClick={agregarLink} className={`${btnPremium} flex-grow min-w-[105px] h-[40px] bg-[#F1C40F] text-[#000000]`}>Agregar</button>
+            <button type="button" onClick={importarEnlaces} className={`${btnPremium} flex-grow min-w-[120px] h-[40px] bg-[#9B59B6] text-[#FFFFFF]`}>Importar ({listaCaptura.length})</button>
+            <button type="button" onClick={() => setListaVideos(prev => prev.map(v => v.estado === 'Pendiente' || v.estado === 'Error' ? {...v, estado: 'En Cola'} : v))} className={`${btnPremium} flex-grow min-w-[120px] h-[40px] bg-[#3498DB] text-[#FFFFFF]`}>Descargar</button>
+            <button type="button" onClick={limpiarListaSegura} className={`${btnPremium} flex-grow min-w-[120px] h-[40px] bg-[#2ECC71] text-[#000000]`}>Limpiar Lista</button>
+            <button type="button" onClick={abrirCarpetaReal} className={`${btnPremium} flex-grow min-w-[130px] h-[40px] bg-[#E67E22] text-[#FFFFFF]`}>Abrir Carpeta</button>
           </div>
         </div>
-      )}
 
-      <div className={`min-h-screen flex items-center justify-center p-4 font-sans transition-colors duration-300 ${cBgApp} ${cFgText}`}>
-        <div className={`w-full max-w-[920px] h-[85vh] min-h-[580px] max-h-[750px] rounded-[8px] shadow-2xl flex flex-col border-2 border-[#E67E22] ${cBgBox}`}>
-          
-          <header className="flex justify-between items-center p-4 flex-wrap gap-2 flex-none">
-            <div className="flex items-center gap-4">
-              <img src="/logo-akasha.png" className="w-[55px] h-[55px] object-contain" alt="logo" />
-              <h1 className="text-[26px] font-bold">AKASHA Downloader v1</h1>
-            </div>
-            <button type="button" onClick={abrirConfiguracion} className="w-[45px] h-[45px] cursor-pointer flex justify-center items-center transition-all duration-700 hover:rotate-[360deg] active:scale-90" title="Configuración">
-              <IconGear fill={isDark ? '#CCCCCC' : '#555555'} />
-            </button>
-          </header>
-
-          <div className="px-[15px] pb-[5px] space-y-[15px] flex-none">
-            <textarea className={`w-full h-[80px] p-[5px] border border-gray-300 outline-none resize-none text-[14px] rounded-[4px] ${cBgBox} ${cFgText}`} value={linkInput} onChange={(e) => setLinkInput(e.target.value)} placeholder="Pega enlaces de YouTube, Instagram, TikTok..." />
-            <div className="flex flex-wrap gap-[10px] pb-[10px]">
-              <button onClick={agregarLink} className={`${btnPremium} flex-grow min-w-[105px] h-[40px] bg-[#F1C40F] text-black`}>Agregar</button>
-              <button onClick={importarEnlaces} className={`${btnPremium} flex-grow min-w-[120px] h-[40px] bg-[#9B59B6] text-white`}>Importar ({listaCaptura.length})</button>
-              <button onClick={() => setListaVideos(prev => prev.map(v => v.estado === 'Pendiente' || v.estado === 'Error' ? {...v, estado: 'En Cola'} : v))} className={`${btnPremium} flex-grow min-w-[120px] h-[40px] bg-[#3498DB] text-white`}>Descargar</button>
-              <button onClick={limpiarListaSegura} className={`${btnPremium} flex-grow min-w-[120px] h-[40px] bg-[#2ECC71] text-black`}>Limpiar Lista</button>
-              <button onClick={abrirCarpetaReal} className={`${btnPremium} flex-grow min-w-[130px] h-[40px] bg-[#E67E22] text-white`}>Abrir Carpeta</button>
-            </div>
-          </div>
-
-          <div className={`flex-1 min-h-0 mx-[15px] mb-[10px] border border-gray-300 rounded-[4px] overflow-auto ${cListBg}`}>
-            <table className="w-full text-left border-collapse text-[13px] min-w-[700px]">
-              <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#333]' : 'bg-gray-100'} shadow-sm`}>
-                <tr className={`border-b ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                  <th className="p-2 font-bold w-[400px]">URL</th>
-                  <th className="p-2 font-bold w-[85px] text-center">Estado</th>
-                  <th className="p-2 font-bold w-[220px] text-center">Progreso</th>
-                  <th className="p-2 font-bold w-[110px] text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listaVideos.map((v) => (
-                  <tr key={v.id} className={`border-b ${isDark ? 'border-gray-700 hover:bg-white/5' : 'border-gray-200 hover:bg-black/5'}`}>
-                    <td className="p-2 truncate max-w-[300px] font-medium">{v.url}</td>
-                    <td className={`p-2 text-center text-xs font-bold uppercase ${v.estado === 'Error' ? 'text-red-500' : ''}`}>{v.estado}</td>
-                    <td className="p-2">
-                      <div className={`w-[200px] ${isDark ? 'bg-gray-700' : 'bg-gray-200'} h-[14px] mx-auto rounded-full overflow-hidden`}>
-                        <div className="h-full transition-all duration-300" style={{ width: `${v.progreso}%`, backgroundColor: v.colorProgreso }}></div>
+        <div className={`flex-1 min-h-0 mx-[15px] mb-[10px] border border-gray-300 rounded-[4px] overflow-auto ${cListBg}`}>
+          <table className="w-full text-left border-collapse text-[13px] min-w-[700px]">
+            <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#333]' : 'bg-gray-100'} shadow-sm`}>
+              <tr className={`border-b ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'}`}>
+                <th className="p-2 font-bold w-[400px]">URL</th>
+                <th className="p-2 font-bold w-[85px] text-center">Estado</th>
+                <th className="p-2 font-bold w-[220px] text-center">Progreso</th>
+                <th className="p-2 font-bold w-[110px] text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {listaVideos.map((v) => (
+                <tr key={v.id} className={`border-b ${isDark ? 'border-gray-700 hover:bg-white/5' : 'border-gray-200/50 hover:bg-black/5'}`}>
+                  <td className="p-2 truncate max-w-[300px] md:max-w-[380px] font-medium">{v.url}</td>
+                  <td className={`p-2 text-center text-xs font-bold uppercase ${v.estado === 'Error' ? 'text-red-500' : (isDark ? 'text-gray-400' : 'text-gray-500')}`}>{v.estado}</td>
+                  <td className="p-2">
+                    <div className={`w-[200px] ${isDark ? 'bg-gray-700' : 'bg-gray-200'} h-[14px] mx-auto rounded-full overflow-hidden shadow-inner`}>
+                      <div className="h-full transition-all duration-300 rounded-full" style={{ width: `${v.progreso}%`, backgroundColor: v.colorProgreso }}></div>
+                    </div>
+                  </td>
+                  <td className="p-2 flex justify-center gap-1">
+                    {v.estado !== 'Completado' && v.estado !== 'Cancelado' && v.estado !== 'Error' && (
+                      <>
+                        <button type="button" onClick={() => togglePausa(v.id)} className="w-[28px] h-[28px] bg-[#FFF0E0] border border-[#FFCC99] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#FFE0C0] shadow-sm active:scale-90 transition-transform" title={v.estado === 'Pausado' ? "Continuar" : "Pausar"}>
+                          {v.estado === 'Pausado' ? <span className="text-[#FF8C00] font-bold text-[10px]">▶</span> : <span className="text-[#FF8C00] font-bold text-[10px]">||</span>}
+                        </button>
+                        <button type="button" onClick={() => eliminarVideo(v.id)} className="w-[28px] h-[28px] bg-[#FFE6E6] border border-[#FFB3B3] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#FFCCCC] shadow-sm active:scale-90 transition-transform" title="Cancelar">
+                          <span className="text-[#CC0000] font-bold text-xs">X</span>
+                        </button>
+                      </>
+                    )}
+                    {v.estado === 'Error' && (
+                      <>
+                        <button type="button" onClick={() => togglePausa(v.id)} className="w-[28px] h-[28px] bg-[#FFF0E0] border border-[#FFCC99] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#FFE0C0] shadow-sm active:scale-90 transition-transform" title="Reintentar">
+                          <span className="text-[#FF8C00] font-bold text-[10px]">▶</span>
+                        </button>
+                        <button type="button" onClick={() => eliminarVideo(v.id)} className="w-[28px] h-[28px] bg-[#FFE6E6] border border-[#FFB3B3] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#FFCCCC] shadow-sm active:scale-90 transition-transform" title="Cancelar">
+                          <span className="text-[#CC0000] font-bold text-xs">X</span>
+                        </button>
+                      </>
+                    )}
+                    {/* NUEVO BOTÓN DE DESCARGA FÍSICA A LA GALERÍA */}
+                    {v.estado === 'Completado' && (
+                      <div className="flex gap-[4px] items-center justify-center">
+                        <button type="button" onClick={() => window.location.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`} className="w-[28px] h-[28px] bg-[#E8F8F5] border border-[#2ECC71] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#D5F5E3] shadow-sm active:scale-90 transition-transform" title="Guardar a la Galería">
+                          <span className="font-bold text-[14px]">⬇️</span>
+                        </button>
+                        <button type="button" onClick={() => eliminarVideo(v.id)} className="w-[28px] h-[28px] bg-transparent flex justify-center items-center cursor-pointer hover:bg-gray-200 rounded-full" title="Limpiar de la lista">
+                          <span className="text-[#00C851] font-bold text-lg">✓</span>
+                        </button>
                       </div>
-                    </td>
-                    <td className="p-2 flex justify-center gap-1">
-                      {v.estado !== 'Completado' && (
-                        <>
-                          <button onClick={() => togglePausa(v.id)} className="w-[28px] h-[28px] border border-[#FFCC99] rounded-[4px] flex justify-center items-center text-[#E67E22] hover:bg-[#E67E22] hover:text-white transition-colors">{v.estado === 'Pausado' ? '▶' : '||'}</button>
-                          <button onClick={() => eliminarVideo(v.id)} className="w-[28px] h-[28px] border border-[#FFB3B3] rounded-[4px] flex justify-center items-center text-red-600 font-bold hover:bg-red-600 hover:text-white transition-colors">X</button>
-                        </>
-                      )}
-                      {v.estado === 'Completado' && <span className="text-[#00C851] font-bold text-lg">✓</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-          <footer className="px-[15px] pb-[10px] flex flex-wrap justify-between items-center text-[11px] gap-2 flex-none font-bold">
-            <div className="flex items-center gap-2">
-              <div className={`w-[12px] h-[12px] rounded-full ${capturadorActivo ? 'bg-[#00C851]' : 'bg-[#CC0000]'}`}></div>
-              <span>Capturador {capturadorActivo ? 'Activo' : 'Inactivo'}</span>
-            </div>
-            <div>{videosCompletados} de {listaVideos.length} completados</div>
-            <div>Akasha Eco Aldea, Colombia. 2026</div>
-          </footer>
+        <div className="px-[15px] pb-[10px] flex flex-wrap justify-between items-center text-[11px] gap-2 flex-none">
+          <div className={`flex items-center gap-2 font-bold min-w-[120px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            <div className={`w-[12px] h-[12px] rounded-full shadow-inner ${capturadorActivo ? 'bg-[#00C851]' : 'bg-[#CC0000]'}`}></div>
+            <span>Capturador {capturadorActivo ? 'Activo' : 'Inactivo'}</span>
+          </div>
+          <div className="font-bold text-center flex-grow">{videosCompletados} de {listaVideos.length} completados</div>
+          <div className="text-right min-w-[280px]">Akasha Eco Aldea, Manizales, Caldas, Colombia. 2026</div>
         </div>
       </div>
 
-      {/* --- MODAL CONFIGURACIÓN (RESTAURADO AL 100% ORIGINAL CON TODAS LAS OPCIONES) --- */}
+      {/* --- MODAL CONFIGURACIÓN --- */}
       {mostrarConfig && (
         <div className="absolute inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
           <div className={`w-full max-w-[560px] flex flex-col ${modalWrapperStyle} ${cConfigModalBg} ${cConfigText}`}>
-            <div className={`h-[35px] ${cConfigInnerBg} flex justify-between items-center px-[12px] border-b ${cConfigBorder}`}>
-              <div className="flex items-center gap-[8px] text-[13px] font-bold">
-                <img src="/logo-akasha.png" className="w-[18px] h-[18px]" alt="icon" /> 
+            <div className={`h-[35px] ${cConfigInnerBg} flex justify-between items-center px-[12px] select-none border-b ${cConfigBorder} flex-none`}>
+              <div className={`flex items-center gap-[8px] text-[13px] font-normal ${cConfigText}`}>
+                <img src="/logo-akasha.png" className="w-[18px] h-[18px] object-contain" alt="icon" /> 
                 <span>Configuración - AKASHA v1</span>
               </div>
-              <button onClick={cancelarConfiguracion} className="hover:bg-red-600 hover:text-white px-2 rounded text-lg transition-colors">✕</button>
+              <button type="button" onClick={cancelarConfiguracion} className={`w-[30px] h-[24px] flex items-center justify-center transition-colors text-[16px] cursor-pointer rounded hover:bg-[#E81123] hover:text-white`}>✕</button>
             </div>
             
-            <div className="flex-grow flex flex-col p-[10px] overflow-hidden">
-              <div className="flex flex-wrap border-b border-gray-300 gap-[2px]">
-                {['General', 'Descargas', 'Red y Automático', 'Soporte y Comunidad'].map(tab => (
-                  <button key={tab} onClick={() => setPestañaActiva(tab)} className={`px-[12px] py-[5px] text-[12px] border ${cConfigBorder} rounded-t-[4px] font-bold cursor-pointer transition-colors ${pestañaActiva === tab ? `${cConfigInnerBg} border-b-transparent text-[#E67E22]` : `${cConfigTabBg} text-gray-500`}`}>
-                    {tab}
-                  </button>
-                ))}
+            <div className={`flex-grow flex flex-col p-[10px] bg-transparent overflow-hidden`}>
+              <div className={`flex flex-wrap border-b ${cConfigBorder} gap-[2px] flex-none z-10 relative top-[1px]`}>
+                {['General', 'Descargas', 'Red y Automático', 'Soporte y Comunidad'].map(tab => {
+                  const isActive = pestañaActiva === tab;
+                  return (
+                    <button type="button" key={tab} onClick={() => setPestañaActiva(tab)} 
+                      className={`px-[12px] py-[5px] text-[12px] border ${cConfigBorder} rounded-t-[4px] cursor-pointer transition-colors ${isActive ? `${cConfigInnerBg} border-b-transparent ${cConfigText} font-bold h-[29px]` : `${cConfigTabBg} ${cConfigTabHover} text-gray-500 h-[28px] mt-[1px]`}`}>
+                      {tab}
+                    </button>
+                  )
+                })}
               </div>
 
-              <div className={`flex-1 min-h-[300px] border border-[#E67E22] p-[20px] overflow-y-auto text-[13px] ${cConfigInnerBg}`}>
+              <div className={`flex-1 min-h-[300px] border border-[#E67E22] p-[20px] overflow-y-auto text-[13px] ${cConfigInnerBg} ${cConfigText}`}>
                 
                 {pestañaActiva === 'General' && (
-                  <div className="space-y-[14px]">
-                    <div className="flex items-center gap-3">
-                      <input id="chkTema" type="checkbox" checked={tempConfig.TemaOscuro} onChange={(e) => setTempConfig(p => ({...p, TemaOscuro: e.target.checked}))} className="w-[16px] h-[16px] cursor-pointer"/> 
-                      <label htmlFor="chkTema" className="font-bold cursor-pointer">{tempConfig.TemaOscuro ? 'Activar Modo Claro' : 'Activar Modo Oscuro'}</label>
+                  <div className="space-y-[12px]">
+                    <div className="flex items-center gap-[8px]">
+                      <input id="chkTema" type="checkbox" checked={tempConfig.TemaOscuro} onChange={(e) => setTempConfig(prev => ({...prev, TemaOscuro: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkTema" className="font-bold text-[14px] cursor-pointer select-none">{tempConfig.TemaOscuro ? 'Activar Modo Claro (Por defecto)' : 'Activar Modo Oscuro (Modo Nocturno)'}</label>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <input id="chkNotif" type="checkbox" checked={tempConfig.Notificaciones} onChange={(e) => setTempConfig(p => ({...p, Notificaciones: e.target.checked}))} className="w-[16px] h-[16px] cursor-pointer"/> 
-                      <label htmlFor="chkNotif" className="cursor-pointer">Reproducir sonido al finalizar descarga</label>
+                    <div className="flex items-center gap-[8px]">
+                      <input id="chkNotif" type="checkbox" checked={tempConfig.Notificaciones} onChange={(e) => setTempConfig(prev => ({...prev, Notificaciones: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkNotif" className="cursor-pointer select-none">Reproducir sonido al terminar descarga</label>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <input id="chkLimp" type="checkbox" checked={tempConfig.AutoLimpiar} onChange={(e) => setTempConfig(p => ({...p, AutoLimpiar: e.target.checked}))} className="w-[16px] h-[16px] cursor-pointer"/> 
-                      <label htmlFor="chkLimp" className="cursor-pointer">Limpiar lista automáticamente al terminar</label>
+                    <div className="flex items-center gap-[8px]">
+                      <input id="chkLimp" type="checkbox" checked={tempConfig.AutoLimpiar} onChange={(e) => setTempConfig(prev => ({...prev, AutoLimpiar: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkLimp" className="cursor-pointer select-none">Limpiar lista automáticamente al terminar</label>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <input id="chkParental" type="checkbox" checked={tempConfig.ControlParental} onChange={(e) => setTempConfig(p => ({...p, ControlParental: e.target.checked}))} className="w-[16px] h-[16px] cursor-pointer"/> 
-                      <label htmlFor="chkParental" className="cursor-pointer">Activar Control Parental</label>
+                    <div className={`border-t ${cConfigBorder} my-[20px]`}></div>
+                    <div className="font-bold mb-[8px]">Seguridad:</div>
+                    <div className="flex items-center gap-[8px]">
+                      <input id="chkParental" type="checkbox" checked={tempConfig.ControlParental} onChange={(e) => setTempConfig(prev => ({...prev, ControlParental: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkParental" className="cursor-pointer select-none">Activar Control Parental</label>
                     </div>
                   </div>
                 )}
 
                 {pestañaActiva === 'Descargas' && (
-                  <div className="space-y-5">
+                  <div className="flex flex-col gap-[15px]">
                     <div>
-                      <p className="font-bold mb-1">Carpeta de Destino:</p>
+                      <div className="font-bold mb-[4px] text-[12px]">Carpeta de Destino:</div>
                       <div className="flex gap-1">
-                        <input type="text" readOnly value={tempConfig.RutaDescargas} className={`flex-1 border p-1.5 rounded ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white border-gray-300'}`} />
-                        <button onClick={abrirExplorador} className="bg-gray-200 px-3 rounded text-black hover:bg-gray-300 font-bold border border-gray-400">...</button>
+                        <input type="text" readOnly value={tempConfig.RutaDescargas} className={`flex-grow h-[26px] min-w-[50px] text-[12px] ${nativeInput}`}/>
+                        <button type="button" onClick={abrirExplorador} disabled={abriendoCarpeta} className={`w-[30px] h-[26px] border ${cConfigBorder} ${cConfigTabBg} rounded-[2px] flex justify-center items-center cursor-pointer ${cConfigTabHover}`}>{abriendoCarpeta ? '⏳' : '...'}</button>
                       </div>
                     </div>
                     <div>
-                      <p className="font-bold mb-1">Formato de Salida (9 Opciones RESTURADAS):</p>
-                      <select value={tempConfig.FormatoDefault} onChange={e => setTempConfig(p => ({...p, FormatoDefault: e.target.value}))} className={`w-full border p-1.5 rounded outline-none cursor-pointer ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white border-gray-300'}`}>
-                        <option>Original (Sin conversión)</option>
-                        <option>Video (MP4)</option>
-                        <option>Video (MKV)</option>
-                        <option>Video (WEBM)</option>
-                        <option>Video (AVI)</option>
-                        <option>Solo Audio (MP3)</option>
-                        <option>Solo Audio (WAV)</option>
-                        <option>Solo Audio (FLAC)</option>
-                        <option>Solo Audio (M4A)</option>
+                      <div className="font-bold mb-[4px] text-[12px]">Formato:</div>
+                      <select value={tempConfig.FormatoDefault} onChange={(e) => setTempConfig(prev => ({...prev, FormatoDefault: e.target.value}))} className={`w-full h-[26px] text-[12px] ${nativeInput}`}>
+                        <option>Original (Sin conversión)</option><option>Video (MP4)</option><option>Video (MKV)</option><option>Video (WebM)</option><option>Solo Audio (MP3)</option><option>Solo Audio (WAV)</option><option>Solo Audio (FLAC)</option>
                       </select>
                     </div>
                     <div>
-                      <p className="font-bold mb-1">Calidad de Video (7 Opciones RESTURADAS):</p>
-                      <select value={tempConfig.CalidadDefault} onChange={e => setTempConfig(p => ({...p, CalidadDefault: e.target.value}))} className={`w-full border p-1.5 rounded outline-none cursor-pointer ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white border-gray-300'}`}>
-                        <option>Original (Sin compresión)</option>
-                        <option>Máxima (4K/8K si está disponible)</option>
-                        <option>1440p (2K)</option>
-                        <option>1080p (Full HD)</option>
-                        <option>720p (HD)</option>
-                        <option>480p (SD)</option>
-                        <option>360p (Baja)</option>
+                      <div className="font-bold mb-[4px] text-[12px]">Calidad de Video:</div>
+                      <select value={tempConfig.CalidadDefault} onChange={(e) => setTempConfig(prev => ({...prev, CalidadDefault: e.target.value}))} className={`w-full h-[26px] text-[12px] ${nativeInput}`}>
+                        <option>Original (Sin compresión)</option><option>Máxima (Mejor disponible)</option><option>1080p (Full HD)</option><option>720p (HD)</option>
                       </select>
-                    </div>
-                    <div className="flex items-center gap-3 pt-3 border-t border-gray-300">
-                      <input id="chkSubs" type="checkbox" checked={tempConfig.Subtitulos} onChange={(e) => setTempConfig(p => ({...p, Subtitulos: e.target.checked}))} className="w-[16px] h-[16px] cursor-pointer"/> 
-                      <label htmlFor="chkSubs" className="font-bold cursor-pointer text-[#E67E22]">Descargar e incrustar Subtítulos automáticamente</label>
                     </div>
                   </div>
                 )}
 
                 {pestañaActiva === 'Red y Automático' && (
-                  <div className="space-y-5">
-                    <div>
-                      <p className="font-bold mb-1">Descargas Simultáneas:</p>
-                      <select value={tempConfig.MaxSimultaneas} onChange={e => setTempConfig(p => ({...p, MaxSimultaneas: e.target.value}))} className={`w-full border p-1.5 rounded outline-none cursor-pointer ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white border-gray-300'}`}>
-                        <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>Ilimitadas</option>
-                      </select>
+                  <div className="flex flex-col">
+                    <div className="flex flex-wrap gap-[15px]">
+                      <div className="flex-1 min-w-[120px]">
+                        <div className="font-bold mb-[4px] text-[12px]">Descargas Simultáneas:</div>
+                        <select value={tempConfig.MaxSimultaneas} onChange={(e) => setTempConfig(prev => ({...prev, MaxSimultaneas: e.target.value}))} className={`w-full h-[26px] text-[12px] ${nativeInput}`}>
+                          <option>1</option><option>2</option><option>3</option><option>5</option><option>10</option><option>Ilimitadas</option>
+                        </select>
+                      </div>
+                      <div className="flex-1 min-w-[120px]">
+                        <div className="font-bold mb-[4px] text-[12px]">Límite de Velocidad:</div>
+                        <select value={tempConfig.LimiteVelocidad} onChange={(e) => setTempConfig(prev => ({...prev, LimiteVelocidad: e.target.value}))} className={`w-full h-[26px] text-[12px] ${nativeInput}`}>
+                          <option>Sin limite</option><option>1 MB/s</option><option>3 MB/s</option><option>5 MB/s</option>
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold mb-1">Límite de Velocidad:</p>
-                      <select value={tempConfig.LimiteVelocidad} onChange={e => setTempConfig(p => ({...p, LimiteVelocidad: e.target.value}))} className={`w-full border p-1.5 rounded outline-none cursor-pointer ${isTempDark ? 'bg-[#333] border-[#555]' : 'bg-white border-gray-300'}`}>
-                        <option>Sin limite</option><option>500 KB/s</option><option>1 MB/s</option><option>2 MB/s</option><option>3 MB/s</option><option>5 MB/s</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center gap-3 pt-2">
-                      <input id="chkPrivados" type="checkbox" checked={tempConfig.VideosPrivados} onChange={e => setTempConfig(p => ({...p, VideosPrivados: e.target.checked}))} className="w-[16px] h-[16px] cursor-pointer"/> 
-                      <label htmlFor="chkPrivados" className="cursor-pointer">Soporte para videos privados (requiere login manual)</label>
-                    </div>
-                    <div className="flex items-center gap-3 pt-4 border-t border-gray-300">
-                      <input id="chk1c" type="checkbox" checked={tempConfig.Modo1Clic} onChange={e => setTempConfig(p => ({...p, Modo1Clic: e.target.checked}))} className="w-[16px] h-[16px] cursor-pointer"/> 
-                      <label htmlFor="chk1c" className="font-bold cursor-pointer text-[#00C851] text-[14px]">Modo 1-Clic: Empezar descargas automáticamente</label>
+                    <div className={`border-t ${cConfigBorder} my-[15px]`}></div>
+                    <div className="font-bold mb-[8px]">Avanzado:</div>
+                    <div className="flex items-center gap-[8px] mb-[8px]">
+                      <input id="chk1C" type="checkbox" checked={tempConfig.Modo1Clic} onChange={(e) => setTempConfig(prev => ({...prev, Modo1Clic: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chk1C" className="cursor-pointer select-none text-[#00C851] font-bold">Modo 1-Clic: Empezar descarga automáticamente</label>
                     </div>
                   </div>
                 )}
 
                 {pestañaActiva === 'Soporte y Comunidad' && (
-                  <div className="flex flex-col items-center justify-center pt-4">
-                     <img src="/logo-akasha.png" className="w-[85px] h-[85px] mb-6 drop-shadow-md" alt="logo" />
-                     <button onClick={() => setModalAbierto('manual')} className={`${btnPremium} w-full max-w-[300px] h-[45px] bg-[#3498DB] text-white mb-3 hover:bg-[#2980B9]`}>📖 Abrir Manual de Usuario</button>
-                     <button onClick={() => setModalAbierto('contacto')} className={`${btnPremium} w-full max-w-[300px] h-[45px] bg-[#9B59B6] text-white mb-3 hover:bg-[#8E44AD]`}>💬 Contacto y Soporte Técnico</button>
-                     <button onClick={() => setModalAbierto('donar')} className={`${btnPremium} w-full max-w-[300px] h-[45px] bg-[#2ECC71] text-black hover:bg-[#27AE60] hover:text-white`}>☕ Apoyar Proyecto (Donar)</button>
+                  <div className="flex flex-col items-center justify-center pt-2">
+                     <img src="/logo-akasha.png" className="w-[75px] h-[75px] object-contain mb-[15px]" alt="logo" />
+                     <div className={`font-bold text-[15px] mb-[25px] text-center ${cConfigText}`}>Gracias por ser parte de la Comunidad AKASHA</div>
+                     <button type="button" onClick={() => setModalAbierto('manual')} className={`${btnPremium} w-full max-w-[280px] h-[45px] bg-[#3498DB] text-[#FFFFFF] mb-[10px]`}>📖 Abrir Manual de Usuario</button>
+                     <button type="button" onClick={() => setModalAbierto('contacto')} className={`${btnPremium} w-full max-w-[280px] h-[45px] bg-[#9B59B6] text-[#FFFFFF] mb-[10px]`}>💬 Contacto y Soporte Técnico</button>
+                     <button type="button" onClick={() => setModalAbierto('donar')} className={`${btnPremium} w-full max-w-[280px] h-[45px] bg-[#2ECC71] text-[#000000]`}>☕ Apoyar el Proyecto (Donar)</button>
                   </div>
                 )}
+
               </div>
               
-              <div className="pt-4 flex justify-end gap-3">
-                <button onClick={guardarConfiguracion} className="w-[120px] h-[40px] bg-[#E67E22] text-white font-bold rounded shadow-md hover:bg-[#d67118] transition-colors active:scale-95">Guardar</button>
-                <button onClick={cancelarConfiguracion} className="w-[100px] h-[40px] bg-gray-300 text-black font-bold rounded shadow-md hover:bg-gray-400 transition-colors active:scale-95">Cancelar</button>
+              <div className="pt-[12px] pb-[4px] flex justify-end gap-[10px] flex-none">
+                <button type="button" onClick={guardarConfiguracion} className={`w-[110px] h-[36px] bg-[#E67E22] text-white font-bold rounded-[6px] shadow-sm hover:bg-[#d8701a]`}>Guardar</button>
+                <button type="button" onClick={cancelarConfiguracion} className={`w-[100px] h-[36px] ${isTempDark ? 'bg-[#444] text-white hover:bg-[#555]' : 'bg-[#F1F1F1] text-black hover:bg-[#E5E5E5] border border-gray-300'} font-bold rounded-[6px] shadow-sm`}>Cancelar</button>
               </div>
+
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: CONTACTO (RESTAURADO) */}
+      {/* --- MODALES SECUNDARIOS --- */}
       {modalAbierto === 'contacto' && (
-        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
-          <div className={`w-full max-w-[400px] flex flex-col ${cConfigModalBg} rounded-[8px] overflow-hidden shadow-2xl border border-[#E67E22]`}>
-            <div className={`h-[45px] ${cConfigInnerBg} flex justify-between items-center px-4 border-b ${cConfigBorder}`}>
-              <span className="font-bold text-[15px] tracking-wide text-[#E67E22]">Soporte Técnico AKASHA</span>
-              <button onClick={() => setModalAbierto('')} className="hover:bg-red-600 hover:text-white w-[30px] h-[30px] rounded-full flex items-center justify-center transition-colors font-bold">✕</button>
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className={`w-[360px] flex flex-col ${cConfigModalBg} ${modalWrapperStyle} relative`}>
+            <div className={`h-[35px] ${cConfigInnerBg} flex justify-between items-center px-[12px] border-b ${cConfigBorder}`}>
+              <span className={`text-[13px] ${cConfigText}`}>Contacto y Soporte</span>
+              <button type="button" onClick={() => setModalAbierto('')} className="hover:bg-[#E81123] hover:text-white w-[30px] h-[24px] flex items-center justify-center rounded transition-colors text-[16px]">✕</button>
             </div>
-            <div className={`p-8 flex flex-col items-center gap-4 ${isTempDark ? 'text-white' : 'text-black'}`}>
-              <p className="text-center text-[14px] font-medium mb-2">¿Tienes algún problema con las descargas? Contáctanos directamente:</p>
-              <button onClick={() => window.open(`https://wa.me/573155622460`)} className={`${btnPremium} w-full h-[50px] bg-[#25D366] text-white text-[16px] hover:bg-[#20b858]`}><IconWA/><span className="ml-2">WhatsApp: +57 315 5622460</span></button>
-              <button onClick={() => window.location.href = `mailto:compuamauri@gmail.com`} className={`${btnPremium} w-full h-[50px] bg-[#D44638] text-white text-[16px] hover:bg-[#c23e31]`}><IconMail/><span className="ml-2">compuamauri@gmail.com</span></button>
+            <div className={`p-[25px] flex flex-col items-center border border-[#E67E22] m-[10px] rounded-[4px] ${cConfigInnerBg} ${cConfigText}`}>
+              <div className="font-bold text-[14px] mb-[20px] text-center">¿Tienes alguna duda? Escríbenos:</div>
+              <button type="button" onClick={() => window.open(`https://wa.me/573155622460?text=Hola,%20necesito%20soporte%20con%20el%20software%20AKASHA%20Downloader.`, '_blank')} className={`${btnPremium} w-full h-[45px] bg-[#25D366] text-black mb-[10px] flex gap-2`}><IconWA/> WhatsApp</button>
+              <button type="button" onClick={() => window.location.href = `mailto:compuamauri@gmail.com?subject=Soporte%20AKASHA%20Downloader`} className={`${btnPremium} w-full h-[45px] bg-[#D44638] text-white flex gap-2`}><IconMail/> Correo</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: DONAR (RESTAURADO) */}
       {modalAbierto === 'donar' && (
-        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
-          <div className="w-full max-w-[450px] bg-white rounded-[12px] shadow-2xl overflow-hidden border-2 border-[#2ECC71]">
-            <div className="h-[50px] bg-[#2ECC71] flex justify-between items-center px-5 text-black">
-              <span className="font-extrabold text-[16px] tracking-wide">Apoyar el Proyecto AKASHA</span>
-              <button onClick={() => setModalAbierto('')} className="hover:bg-black/20 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-colors font-bold">✕</button>
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className={`w-[420px] flex flex-col ${cConfigModalBg} ${modalWrapperStyle} relative`}>
+            <div className={`h-[35px] ${cConfigInnerBg} flex justify-between items-center px-[12px] border-b ${cConfigBorder}`}>
+              <span className={`text-[13px] ${cConfigText}`}>Apoyar el Proyecto</span>
+              <button type="button" onClick={() => setModalAbierto('')} className="hover:bg-[#E81123] hover:text-white w-[30px] h-[24px] flex items-center justify-center rounded transition-colors text-[16px]">✕</button>
             </div>
-            <div className="p-8 flex flex-col items-center text-black">
-              <img src="/logo-akasha.png" className="w-[60px] h-[60px] mb-4" alt="logo" />
-              <p className="text-center font-medium mb-6 text-[15px] text-gray-700">Este proyecto se mantiene vivo gracias a tu apoyo. Si te ha sido útil, considera invitarnos un café.</p>
-              
-              <div className="w-full bg-gray-100 p-4 rounded-[8px] border border-gray-300 mb-6">
-                <p className="font-extrabold text-center text-[18px] mb-2 text-[#673AB7]">🟣 NEQUI: 315 562 2460</p>
-                <div className="w-full h-[1px] bg-gray-300 my-2"></div>
-                <p className="font-extrabold text-center text-[18px] mt-2 text-[#F1C40F] drop-shadow-sm">🟡 BANCOLOMBIA: 912-932520-12</p>
-                <p className="text-center text-[13px] italic text-gray-500 mt-3">Titular: Andrés Mauricio Rivera</p>
+            <div className={`p-[25px] flex flex-col border border-[#E67E22] m-[10px] rounded-[4px] ${cConfigInnerBg} ${cConfigText}`}>
+              <div className="font-bold text-[15px] text-center mb-[15px]">¡Tu apoyo mantiene vivo este software!</div>
+              <div className={`border rounded-[6px] p-[20px] ${isTempDark ? 'border-[#555] bg-[#222]' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="font-bold text-center text-[#E67E22] text-[13px] mb-[15px]">CUENTAS NACIONALES (COLOMBIA)</div>
+                <div className="font-bold text-[12px]">NEQUI:</div>
+                <div className="font-bold text-[18px] mb-[10px]">3155622460</div>
+                <div className="font-bold text-[12px]">BANCOLOMBIA (Ahorros):</div>
+                <div className="font-bold text-[18px] mb-[15px]">912-932520-12</div>
+                <div className={`italic text-[12px] ${isTempDark ? 'text-gray-400' : 'text-gray-600'}`}>Titular: Andrés Mauricio Rivera</div>
               </div>
-
-              <button onClick={() => window.open(`https://wa.me/573155622460`)} className="w-full h-[45px] bg-[#25D366] rounded-[8px] font-bold text-center text-white shadow-md hover:bg-[#20b858] active:scale-95 transition-all flex items-center justify-center gap-2">
-                <IconWA /> Enviar Comprobante
-              </button>
+              <button type="button" onClick={() => window.open(`https://wa.me/573155622460`, '_blank')} className={`${btnPremium} w-full h-[45px] bg-[#25D366] text-black mt-[20px] flex gap-2 flex-none`}><IconWA/> Ya transferí - Comprobante</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: MANUAL DE USUARIO (COMBINACIÓN TOTAL Y RESTAURADA) */}
+      {/* --- MANUAL DE USUARIO HTML COMBINADO --- */}
       {modalAbierto === 'manual' && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-[100] p-2 md:p-6 backdrop-blur-md">
-          <div className="w-full max-w-[1000px] h-[95vh] bg-[#f4f7f6] rounded-[12px] flex flex-col overflow-hidden shadow-2xl border-2 border-[#3498DB]">
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-[100] p-4">
+          <div className="w-full max-w-[1000px] h-[95vh] bg-[#f4f7f6] rounded-[12px] flex flex-col overflow-hidden shadow-2xl border-2 border-[#E67E22]">
             <div className="h-[60px] bg-[#2d3e50] flex justify-between items-center px-6 text-white shadow-md z-10">
               <div className="flex items-center gap-3">
                 <img src="/logo-akasha.png" className="w-[25px] h-[25px]" alt="logo" />
-                <span className="font-extrabold tracking-widest text-[18px]">MANUAL DE USUARIO AKASHA v1</span>
+                <span className="font-extrabold tracking-widest text-[16px] md:text-[18px]">MANUAL DE USUARIO AKASHA</span>
               </div>
               <button onClick={() => setModalAbierto('')} className="bg-[#e74c3c] px-4 py-2 rounded-[6px] font-bold hover:bg-red-700 active:scale-95 transition-all shadow-md">Volver a la App</button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 md:p-12 leading-relaxed text-gray-800 bg-white manual-html-content">
-              {/* === INICIO DE COMBINACIÓN DEL MANUAL ORIGINAL === */}
-              <h1 className="text-3xl md:text-4xl font-extrabold text-center mb-8 border-b-4 border-[#E67E22] pb-6 text-[#2d3e50]">Documentación Oficial AKASHA</h1>
+            <div className="flex-1 overflow-y-auto p-6 md:p-[40px] text-[#2d3436] font-sans leading-[1.8] bg-[#f4f7f6]">
               
-              <section className="mb-10 bg-gray-50 p-6 rounded-[8px] border border-gray-200">
-                <h2 className="text-2xl font-bold text-[#E67E22] mb-4 flex items-center gap-2"><span>1.</span> Introducción</h2>
-                <p className="mb-4 text-[16px]">Has adquirido una herramienta multimedia de grado profesional diseñada con estándares de alto rendimiento y una arquitectura moderna. Este software te permite extraer, convertir y gestionar archivos multimedia desde múltiples fuentes en internet. El manual ha sido dividido en secciones clave para garantizar el máximo aprovechamiento de la plataforma.</p>
-              </section>
-
-              <section className="mb-10">
-                <h2 className="text-2xl font-bold text-[#3498DB] mb-6 border-b-2 border-gray-300 pb-2">2. Pantalla Principal y Extracción</h2>
-                
-                <div className="mb-8 p-4 bg-gray-100 rounded-lg">
-                  <p className="font-bold text-[18px] mb-3 text-black">A. Cuadro de Pegado de Enlaces:</p>
-                  <p className="text-[16px] text-gray-700">Utiliza este cuadro de texto para pegar una o múltiples URLs directamente. Puedes escribir un enlace, presionar Enter, y escribir otro. Es la vía principal para agregar contenido a la cola.</p>
-                </div>
-
-                <div className="mb-8 p-4 bg-gray-100 rounded-lg">
-                  <p className="font-bold text-[18px] mb-3 text-black">B. Los Botones de Control (RESTAURADOS):</p>
-                  <ul className="list-disc pl-6 space-y-3 text-[16px] text-gray-700">
-                    <li><strong className="text-yellow-600">Agregar:</strong> Toma los enlaces del cuadro de texto y los lleva a la tabla de descargas en estado "Pendiente".</li>
-                    <li><strong className="text-purple-600">Importar:</strong> Es un sistema inteligente. Si el "Capturador" (ver pie de página) está activo, este botón te dirá cuántos enlaces ha detectado en tu portapapeles y los importará de golpe.</li>
-                    <li><strong className="text-blue-600">Descargar:</strong> Inicia el motor de descarga para todos los videos que estén en estado "Pendiente" o "Error".</li>
-                    <li><strong className="text-green-600">Limpiar Lista:</strong> Borra de la tabla todos los videos que no estén descargándose activamente.</li>
-                    <li><strong className="text-orange-600">Abrir Carpeta:</strong> Intenta abrir la ruta de descargas configurada (Solo funciona 100% en PC nativo).</li>
-                  </ul>
-                </div>
-                
-                <div className="mb-8 p-4 bg-gray-100 rounded-lg">
-                  <p className="font-bold text-[18px] mb-3 text-black">C. La Tabla de Descargas:</p>
-                  <p className="text-[16px] text-gray-700">Visualiza en tiempo real el progreso de cada video, su estado (Pendiente, Descargando, Completado, Error) y accede a los controles individuales de pausa (||) o eliminación (X).</p>
-                </div>
-              </section>
-
-              <section className="mb-10 bg-gray-50 p-6 rounded-[8px] border border-gray-200">
-                <h2 className="text-2xl font-bold text-[#2ECC71] mb-6 border-b-2 border-gray-300 pb-2">3. Configuración y Ajustes (Original Completo)</h2>
-                
-                <div className="space-y-6">
-                  <div>
-                    <strong className="text-[17px] text-black">A. Pestaña General:</strong>
-                    <p className="text-[16px] text-gray-700 pl-4 mt-1">Controla el <strong className="text-black">Tema Oscuro</strong>, activa el sonido de finalización (<strong className="text-black">Notificaciones</strong>), la limpieza automática de la lista al terminar, y el <strong className="text-black">Control Parental</strong>.</p>
-                  </div>
-                  <div>
-                    <strong className="text-[17px] text-black">B. Pestaña Descargas (Las 9 Opciones y 7 Calidades):</strong>
-                    <p className="text-[16px] text-gray-700 pl-4 mt-1 mb-2">Aquí configuras tu <strong className="text-black">Carpeta de Destino</strong> visual. Elige entre los <strong className="text-black">9 Formatos de Salida</strong> (Original, MP4, MKV, MP3, etc.) y las <strong className="text-black">7 Calidades de Video</strong> (Original, 4K, 1080p, 720p, etc.). También puedes activar la <strong className="text-black">descarga e incrustación de Subtítulos</strong> automáticamente.</p>
-                  </div>
-                  <div>
-                    <strong className="text-[17px] text-black">C. Pestaña Red y Automático:</strong>
-                    <p className="text-[16px] text-gray-700 pl-4 mt-1">Define cuántas <strong className="text-black">Descargas Simultáneas</strong> permites y activa el <strong className="text-green-600 font-bold">Modo 1-Clic</strong> para que los enlaces capturados empiecen a descargarse sin intervención manual.</p>
-                  </div>
-                </div>
-              </section>
-
-              {/* === NUEVA SECCIÓN TÉCNICA Y DE ERRORES (COMBINADA) === */}
-              <section className="mb-12 bg-red-50 p-6 rounded-[12px] border-2 border-red-300">
-                <h2 className="text-2xl font-bold text-red-600 mb-6 flex items-center gap-2">⚠️ Sección de Solución de Problemas Críticos</h2>
-                
-                <div className="space-y-6 text-[16px]">
-                  <div className="bg-white p-4 rounded-lg border border-red-200">
-                    <p className="font-bold text-red-700 text-[17px] mb-2">1. Error al Abrir Carpeta en Móvil (RESTAURADO):</p>
-                    <p>Como se menciona en tu reporte, en la versión web instalada en celular, presionar "Abrir Carpeta" lanza un error. Esto es <strong className="text-black">NORMAL</strong>. Los navegadores web móviles (Chrome/Safari) prohíben por seguridad que una página web abra tu explorador de archivos interno.</p>
-                    <p className="font-bold text-green-700 mt-2">SOLUCIÓN: El motor de AKASHA ahora fuerza una "Entrega Física". Cuando el video llega a 100%, tu celular te pedirá guardar el archivo en tu carpeta de "Descargas" o "Galería" automáticamente.</p>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-lg border border-red-200">
-                    <p className="font-bold text-red-700 text-[17px] mb-2">2. Videos que quedan en "Error" tras minutos (TikTok, IG):</p>
-                    <p>Si un video queda en error, puede deberse a bloqueos Anti-Bot que las redes sociales (especialmente Instagram y TikTok) aplican a las direcciones IP del servidor gratuito en la nube (Render).</p>
-                    <p className="font-bold text-black mt-2">SOLUCIÓN: Intenta descargar un video corto y público de YouTube. Si ese funciona, el servidor está sano y el problema es el escudo Anti-Bot de la red social de origen en ese momento.</p>
-                  </div>
-                </div>
-              </section>
-
-              <div className="mt-16 text-center text-gray-400 text-[13px] font-bold tracking-widest border-t-2 border-gray-200 pt-8">
-                <p>AKASHA Eco Aldea • Tecnología Consciente al Servicio de la Humanidad</p>
-                <p>Desarrollado en Manizales, Colombia - 2026</p>
+              <div className="text-center border-b-[4px] border-[#E67E22] pb-[20px] mb-[40px] bg-white p-[30px] rounded-[12px] shadow-[0_4px_10px_rgba(0,0,0,0.05)]">
+                <img src="/logo-akasha.png" alt="Logo Akasha" className="w-[85px] h-auto mb-[15px] rounded-[18px] mx-auto block" />
+                <h1 className="text-[#2d3e50] text-[2.5em] font-bold mb-[5px] mt-0">AKASHA Downloader Pro v1</h1>
+                <p className="text-[1.2em] text-[#7f8c8d] mt-0">Gestión Multimedia de Alto Rendimiento - Documentación Oficial</p>
               </div>
-              {/* === FIN DE COMBINACIÓN TOTAL === */}
+
+              <div className="bg-white p-[30px] rounded-[12px] shadow-[0_10px_20px_rgba(0,0,0,0.05)] mb-[25px] border border-[#e1e8ed]">
+                <h2 className="text-[#E67E22] border-l-[5px] border-[#E67E22] pl-[15px] mt-0 uppercase text-[1.3em] bg-[#fffaf5] p-[10px_15px] rounded-r-[8px] font-bold mb-[15px]">1. Introducción y Bienvenida</h2>
+                <p>Has adquirido una herramienta diseñada con estándares profesionales para la extracción y descarga de contenido multimedia. A diferencia de programas genéricos, <strong>AKASHA Downloader Pro</strong> opera sin publicidad, protege tu privacidad y gestiona múltiples descargas simultáneas exprimiendo al máximo tu conexión a internet de forma inteligente.</p>
+              </div>
+
+              <div className="bg-white p-[30px] rounded-[12px] shadow-[0_10px_20px_rgba(0,0,0,0.05)] mb-[25px] border border-[#e1e8ed]">
+                <h2 className="text-[#E67E22] border-l-[5px] border-[#E67E22] pl-[15px] mt-0 uppercase text-[1.3em] bg-[#fffaf5] p-[10px_15px] rounded-r-[8px] font-bold mb-[20px]">2. Guía de Inicio Rápido (El Paso a Paso)</h2>
+                <p>Para realizar tu primera extracción de manera exitosa, sigue este sencillo procedimiento:</p>
+                <div className="mt-[20px] flex flex-col gap-[15px]">
+                  <p className="flex items-start"><span className="bg-[#E67E22] text-white rounded-full w-[25px] h-[25px] flex items-center justify-center text-[0.9em] font-bold mr-[10px] flex-none mt-[2px]">1</span> <span><strong>Abre AKASHA Downloader Pro</strong> y déjalo minimizado o a un lado en tu pantalla.</span></p>
+                  <p className="flex items-start"><span className="bg-[#E67E22] text-white rounded-full w-[25px] h-[25px] flex items-center justify-center text-[0.9em] font-bold mr-[10px] flex-none mt-[2px]">2</span> <span><strong>Busca tu contenido:</strong> Ve a tu navegador de internet (Chrome, Edge, etc.) y abre la plataforma o red social de donde desees extraer el video o audio.</span></p>
+                  <p className="flex items-start"><span className="bg-[#E67E22] text-white rounded-full w-[25px] h-[25px] flex items-center justify-center text-[0.9em] font-bold mr-[10px] flex-none mt-[2px]">3</span> <span><strong>Copia el enlace:</strong> Elige el video o canción que desees descargar, selecciona <em>"Compartir"</em> y luego dale clic en <strong>"Copiar enlace"</strong>. ¡El resto lo hace AKASHA!</span></p>
+                  <p className="flex items-start"><span className="bg-[#E67E22] text-white rounded-full w-[25px] h-[25px] flex items-center justify-center text-[0.9em] font-bold mr-[10px] flex-none mt-[2px]">4</span> <span><strong>Revisa el Capturador:</strong> Regresa a tu AKASHA Downloader Pro. Verás que el pequeño indicador en la esquina inferior izquierda cambió de rojo a verde (<strong>"Capturador activo"</strong>).</span></p>
+                  <p className="flex items-start"><span className="bg-[#E67E22] text-white rounded-full w-[25px] h-[25px] flex items-center justify-center text-[0.9em] font-bold mr-[10px] flex-none mt-[2px]">5</span> <span><strong>Importa y Agrega:</strong> Dale clic al botón morado <strong>Importar</strong> y luego al botón amarillo <strong>Agregar</strong>, y verás cómo se preparan elegantemente en la fila inferior.</span></p>
+                  <p className="flex items-start"><span className="bg-[#E67E22] text-white rounded-full w-[25px] h-[25px] flex items-center justify-center text-[0.9em] font-bold mr-[10px] flex-none mt-[2px]">6</span> <span><strong>¡Haz la magia!:</strong> Dale clic al botón azul <strong>Descargar</strong> y listo.</span></p>
+                </div>
+              </div>
+
+              <div className="bg-white p-[30px] rounded-[12px] shadow-[0_10px_20px_rgba(0,0,0,0.05)] mb-[25px] border border-[#e1e8ed]">
+                <h2 className="text-[#E67E22] border-l-[5px] border-[#E67E22] pl-[15px] mt-0 uppercase text-[1.3em] bg-[#fffaf5] p-[10px_15px] rounded-r-[8px] font-bold mb-[15px]">3. Explicación de los Controles e Interfaz</h2>
+                <ul className="pl-[20px] list-disc mt-[15px] flex flex-col gap-[12px]">
+                  <li><strong>El Cuadro de Texto Blanco:</strong> Es tu área de trabajo manual. Puedes pegar aquí listas enteras de enlaces.</li>
+                  <li><strong>Botón "Limpiar Lista" (Verde):</strong> Borra de la pantalla visual las descargas que ya llegaron al 100%, pero tranquilo, <strong>jamás borrará</strong> los archivos físicos.</li>
+                  <li><strong>Botón Naranja (Pausar/Reanudar):</strong> Detiene la transferencia de datos guardando tu progreso.</li>
+                  <li><strong>Botón Rojo (Cancelar):</strong> Aborta la operación de manera segura.</li>
+                </ul>
+              </div>
+
+              <div className="bg-white p-[30px] rounded-[12px] shadow-[0_10px_20px_rgba(0,0,0,0.05)] mb-[25px] border border-[#e1e8ed]">
+                <h2 className="text-[#E67E22] border-l-[5px] border-[#E67E22] pl-[15px] mt-0 uppercase text-[1.3em] bg-[#fffaf5] p-[10px_15px] rounded-r-[8px] font-bold mb-[20px]">4. Configuración Avanzada (Engranaje)</h2>
+                <h3 className="text-[#34495e] mt-[25px] border-b border-dashed border-[#ddd] pb-[5px] font-bold text-[1.17em] mb-[10px]">Pestaña: General</h3>
+                <ul className="pl-[20px] list-disc"><li>Controla el Modo Oscuro y las Notificaciones.</li></ul>
+
+                <h3 className="text-[#34495e] mt-[25px] border-b border-dashed border-[#ddd] pb-[5px] font-bold text-[1.17em] mb-[10px]">Pestaña: Descargas</h3>
+                <ul className="pl-[20px] list-disc"><li>Selecciona el formato (MP4, MKV, MP3, WAV) y la calidad forzada del video (Original, 1080p, 720p).</li></ul>
+
+                <h3 className="text-[#34495e] mt-[25px] border-b border-dashed border-[#ddd] pb-[5px] font-bold text-[1.17em] mb-[10px]">Pestaña: Red y Automático</h3>
+                <ul className="pl-[20px] list-disc">
+                  <li><strong>Descargas Simultáneas:</strong> ¡El motor multi-hilo! Acelera descargando varios a la vez.</li>
+                  <li><strong>El "Modo 1-Clic":</strong> Simplemente deja el programa abierto y cada vez que copies un enlace, se descargará <strong>automáticamente</strong>.</li>
+                </ul>
+              </div>
+
+              {/* SECCIONES TÉCNICAS AÑADIDAS */}
+              <div className="bg-white p-[30px] rounded-[12px] shadow-[0_10px_20px_rgba(0,0,0,0.05)] mb-[25px] border border-[#3498db]">
+                <h2 className="text-[#3498db] border-l-[5px] border-[#3498db] pl-[15px] mt-0 uppercase text-[1.3em] bg-[#f0f8ff] p-[10px_15px] rounded-r-[8px] font-bold mb-[20px]">5. Instalación PWA (Celular y PC)</h2>
+                <ul className="pl-[20px] list-disc flex flex-col gap-[12px]">
+                  <li><strong>En PC:</strong> En Chrome/Edge, busca el ícono de una pantalla con una flecha en la barra de direcciones y dale a "Instalar".</li>
+                  <li><strong>En Celular (Android/iOS):</strong> En tu navegador, presiona el menú (3 puntos) o Compartir, y toca <strong>"Agregar a la pantalla principal"</strong>. Así AKASHA aparecerá en tu menú nativo de Compartir.</li>
+                </ul>
+              </div>
+
+              <div className="bg-[#fffdfa] p-[30px] rounded-[12px] shadow-[0_10px_20px_rgba(0,0,0,0.05)] mb-[25px] border-2 border-red-400">
+                <h2 className="text-[#d32f2f] border-l-[5px] border-[#d32f2f] pl-[15px] mt-0 uppercase text-[1.3em] bg-[#ffebeb] p-[10px_15px] rounded-r-[8px] font-bold mb-[20px]">6. Solución de Problemas Frecuentes (FAQ)</h2>
+                <ul className="pl-[20px] list-disc flex flex-col gap-[15px]">
+                  <li>
+                    <strong>¿Por qué presiono "Abrir Carpeta" y sale un error en el celular?</strong><br/>
+                    Por seguridad, tu navegador móvil (Chrome/Safari) bloquea que una página abra la galería de tu celular a la fuerza. <br/>
+                    <strong className="text-green-600">Solución Integrada:</strong> Cuando tu descarga llegue a 100%, tu celular te pedirá guardar el archivo en tu carpeta de "Descargas" o "Galería". Si no lo hace, simplemente haz clic en el <strong>botón verde de la flecha hacia abajo (⬇️)</strong> que aparecerá junto a tu video para forzar la descarga a tu dispositivo.
+                  </li>
+                  <li>
+                    <strong>Mis descargas se quedan pegadas y luego marcan Error:</strong><br/>
+                    Esto ocurre principalmente con videos de TikTok, Instagram o Facebook. Estas redes sociales detectan que AKASHA está en un servidor en la nube (Render) y activan temporalmente un "Escudo Anti-Bot" para bloquear la descarga.<br/>
+                    <strong className="text-[#3498db]">Prueba rápida:</strong> Intenta descargar un video corto de YouTube. Si YouTube sí descarga perfectamente a tu celular, significa que tu aplicación está en perfecto estado, y el problema fue la seguridad de la otra red.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="text-center mt-[40px] p-[30px] bg-white rounded-[12px] border-t-[5px] border-[#3498db] shadow-[0_10px_20px_rgba(0,0,0,0.05)]">
+                <h2 className="m-0 border-none p-0 bg-transparent text-[1.5em] text-[#2d3e50] font-bold mb-[20px]">Soporte Técnico Especializado</h2>
+                <p className="text-[1.1em] mb-[20px]">¿Tienes un problema específico o encontraste un error? Nuestro equipo está listo para asistirte.</p>
+                <div className="flex justify-center flex-wrap gap-[15px]">
+                  <a href="https://wa.me/573155622460?text=Hola,%20necesito%20soporte%20con%20el%20software%20AKASHA%20Downloader." target="_blank" rel="noreferrer" className="inline-flex items-center justify-center p-[15px_30px] no-underline rounded-[8px] font-bold text-[1.1em] transition-all duration-300 bg-[#25D366] text-black shadow-[0_4px_#128C7E] hover:-translate-y-[2px]">
+                    <span className="mr-[10px]"><IconWA/></span> Escríbenos por WhatsApp
+                  </a>
+                  <a href="mailto:compuamauri@gmail.com?subject=Soporte%20AKASHA%20Downloader" className="inline-flex items-center justify-center p-[15px_30px] no-underline rounded-[8px] font-bold text-[1.1em] transition-all duration-300 bg-[#D44638] text-white shadow-[0_4px_#b23124] hover:-translate-y-[2px]">
+                    <span className="mr-[10px]"><IconMail/></span> Déjanos un Correo Electrónico
+                  </a>
+                </div>
+              </div>
+              
+              <footer className="text-center mt-[60px] p-[30px] border-t-[2px] border-[#E67E22] text-[#636e72] text-[1.1em] leading-[1.5]">
+                <strong>Akasha Eco Aldea</strong><br/>
+                Manizales, Caldas, Colombia.<br/>
+                2026
+              </footer>
+
             </div>
           </div>
         </div>
       )}
 
-    </main>
+    </div>
   );
 }
