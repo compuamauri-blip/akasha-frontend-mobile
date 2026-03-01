@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 
 /* ==========================================================================
    COMPONENTES SVG EMPAQUETADOS
-   Iconos optimizados para no depender de librerías externas
    ========================================================================== */
 const IconGear = ({ fill }: { fill: string }) => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill={fill}>
@@ -21,7 +20,6 @@ const IconMail = () => (
   </svg>
 );
 
-// === NUEVO MOTOR: EXTRACCIÓN INTELIGENTE DE ENLACES PARA TODAS LAS REDES ===
 const extraerUrls = (texto: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const encontradas = texto.match(urlRegex);
@@ -63,7 +61,7 @@ export default function Home() {
   const [tempConfig, setTempConfig] = useState({ ...config });
 
   /* ==========================================================================
-     REFERENCIAS (Para acceso seguro en efectos asíncronos)
+     REFERENCIAS
      ========================================================================== */
   const lastClipboard = useRef('');
   const listaVideosRef = useRef(listaVideos);
@@ -75,7 +73,7 @@ export default function Home() {
   const videosCompletados = listaVideos.filter(v => v.estado === 'Completado').length;
 
   /* ==========================================================================
-     SISTEMA DE MEMORIA LOCAL (Soluciona el reseteo al compartir)
+     SISTEMA DE MEMORIA LOCAL
      ========================================================================== */
   useEffect(() => {
     const savedVideos = localStorage.getItem('akasha_videos');
@@ -116,7 +114,6 @@ export default function Home() {
     link.href = '/logo-akasha.png';
   }, []);
 
-  // RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target Multiredes)
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -139,7 +136,6 @@ export default function Home() {
     }
   }, [isLoaded]);
 
-  // Monitor del Portapapeles (Capturador Inteligente)
   useEffect(() => {
     const checkClipboard = async () => {
       if (!document.hasFocus() || !isLoaded) return;
@@ -180,7 +176,9 @@ export default function Home() {
     };
   }, [config.Modo1Clic, isLoaded]);
 
-  // Motor Principal de Descargas (Gestión de Cola y Sincronización)
+  /* ==========================================================================
+     MOTOR PRINCIPAL DE DESCARGAS
+     ========================================================================== */
   useEffect(() => {
     let isActive = true;
 
@@ -231,16 +229,26 @@ export default function Home() {
                 newState[i] = { ...v, progreso: p, colorProgreso: c, estado: p >= 100 ? 'Completado' : 'Descargando' };
                 hasChanges = true;
                 
-                // === AUTO DESCARGA AL LLEGAR A 100% (CORRECCIÓN PWA NATIVA MÓVIL) ===
+                // =========================================================================
+                // CORRECCIÓN EXACTA 1: AUTO-DESCARGA CON BLOB SILENCIOSO (Evita pantalla negra)
+                // =========================================================================
                 if (p >= 100 && v.progreso < 100) {
                   activeCount--; 
-                  setTimeout(() => {
-                    const link = document.createElement('a');
-                    link.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                    link.setAttribute('download', `AKASHA_Media_${v.id}`);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                  setTimeout(async () => {
+                    try {
+                      const response = await fetch(`https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`);
+                      const blob = await response.blob();
+                      const blobUrl = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = blobUrl;
+                      link.setAttribute('download', `AKASHA_Media_${v.id}`);
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+                    } catch (error) {
+                      console.error("Fallo auto-descarga blob", error);
+                    }
                   }, 500);
                 }
               }
@@ -492,17 +500,27 @@ export default function Home() {
                         </button>
                       </>
                     )}
-                    {/* NUEVO BOTÓN DE DESCARGA FÍSICA A LA GALERÍA (CORREGIDO PARA MÓVIL) */}
+                    {/* =========================================================================
+                        CORRECCIÓN EXACTA 2: BOTÓN MANUAL CON BLOB SILENCIOSO (Evita pantalla negra)
+                        ========================================================================= */}
                     {v.estado === 'Completado' && (
                       <div className="flex gap-[4px] items-center justify-center">
-                        <button type="button" onClick={(e) => {
+                        <button type="button" onClick={async (e) => {
                           e.preventDefault();
-                          const link = document.createElement('a');
-                          link.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                          link.setAttribute('download', `AKASHA_Media_${v.id}`);
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
+                          try {
+                            const response = await fetch(`https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`);
+                            const blob = await response.blob();
+                            const blobUrl = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = blobUrl;
+                            link.setAttribute('download', `AKASHA_Media_${v.id}`);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+                          } catch (error) {
+                            console.error("Fallo descarga manual blob", error);
+                          }
                         }} className="w-[28px] h-[28px] bg-[#E8F8F5] border border-[#2ECC71] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#D5F5E3] shadow-sm active:scale-90 transition-transform" title="Guardar a la Galería">
                           <span className="font-bold text-[14px]">⬇️</span>
                         </button>
