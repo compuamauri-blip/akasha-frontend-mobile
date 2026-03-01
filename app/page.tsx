@@ -231,13 +231,12 @@ export default function Home() {
                 newState[i] = { ...v, progreso: p, colorProgreso: c, estado: p >= 100 ? 'Completado' : 'Descargando' };
                 hasChanges = true;
                 
-                // === AUTO DESCARGA AL LLEGAR A 100% (CORREGIDO PARA MÓVIL) ===
+                // === AUTO DESCARGA AL LLEGAR A 100% (CORRECCIÓN PWA NATIVA MÓVIL) ===
                 if (p >= 100 && v.progreso < 100) {
                   activeCount--; 
                   setTimeout(() => {
                     const link = document.createElement('a');
                     link.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                    link.target = '_blank';
                     link.setAttribute('download', `AKASHA_Media_${v.id}`);
                     document.body.appendChild(link);
                     link.click();
@@ -500,7 +499,6 @@ export default function Home() {
                           e.preventDefault();
                           const link = document.createElement('a');
                           link.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                          link.target = '_blank';
                           link.setAttribute('download', `AKASHA_Media_${v.id}`);
                           document.body.appendChild(link);
                           link.click();
