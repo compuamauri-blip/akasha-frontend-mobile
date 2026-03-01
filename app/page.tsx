@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 
 /* ==========================================================================
    COMPONENTES SVG EMPAQUETADOS
+   Iconos optimizados para no depender de librerías externas
    ========================================================================== */
 const IconGear = ({ fill }: { fill: string }) => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill={fill}>
@@ -60,9 +61,6 @@ export default function Home() {
   });
   const [tempConfig, setTempConfig] = useState({ ...config });
 
-  /* ==========================================================================
-     REFERENCIAS
-     ========================================================================== */
   const lastClipboard = useRef('');
   const listaVideosRef = useRef(listaVideos);
   const configRef = useRef(config);
@@ -114,6 +112,7 @@ export default function Home() {
     link.href = '/logo-akasha.png';
   }, []);
 
+  // RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target Multiredes)
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -136,6 +135,7 @@ export default function Home() {
     }
   }, [isLoaded]);
 
+  // Monitor del Portapapeles (Capturador Inteligente)
   useEffect(() => {
     const checkClipboard = async () => {
       if (!document.hasFocus() || !isLoaded) return;
@@ -230,21 +230,28 @@ export default function Home() {
                 hasChanges = true;
                 
                 // =========================================================================
-                // CORRECCIÓN EXACTA 1: AUTO-DESCARGA NATIVA MÓVIL (Con verificación previa)
+                // CORRECCIÓN EXACTA: AUTO-DESCARGA CON BLOB SILENCIOSO 
                 // =========================================================================
                 if (p >= 100 && v.progreso < 100) {
                   activeCount--; 
                   setTimeout(async () => {
                     try {
-                      const fileUrl = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                      const check = await fetch(fileUrl, { method: 'HEAD' });
-                      if (check.ok) {
-                        window.location.href = fileUrl;
+                      const response = await fetch(`https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`);
+                      if (response.ok) {
+                        const blob = await response.blob();
+                        const blobUrl = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = blobUrl;
+                        link.setAttribute('download', `AKASHA_Media_${v.id}.mp4`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
                       }
                     } catch (error) {
-                      console.error("Auto-descarga omitida temporalmente", error);
+                      console.error("Fallo auto-descarga blob", error);
                     }
-                  }, 2000); // 2 segundos de gracia para que Render termine de unir audio y video
+                  }, 1500);
                 }
               }
             }
@@ -278,7 +285,7 @@ export default function Home() {
         });
       }
       
-      if (isActive) setTimeout(procesarCola, 1000);
+      if (isActive) setTimeout(procesarCola, 1500);
     };
     
     procesarCola();
@@ -496,25 +503,40 @@ export default function Home() {
                       </>
                     )}
                     {/* =========================================================================
-                        CORRECCIÓN EXACTA 2: BOTÓN MANUAL CON VERIFICACIÓN PREVIA (Evita error 404)
+                        CORRECCIÓN EXACTA: BOTÓN MANUAL CON BLOB (Cero pantallas negras)
                         ========================================================================= */}
                     {v.estado === 'Completado' && (
                       <div className="flex gap-[4px] items-center justify-center">
                         <button type="button" onClick={async (e) => {
                           e.preventDefault();
+                          const btn = e.currentTarget;
+                          const originalHtml = btn.innerHTML;
+                          btn.innerHTML = '<span class="font-bold text-[14px]">⏳</span>';
+                          
                           try {
                             const fileUrl = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                            const check = await fetch(fileUrl, { method: 'HEAD' });
+                            const response = await fetch(fileUrl);
                             
-                            if (!check.ok) {
-                              alert("⏳ Procesando... El servidor está uniendo el video y el audio de alta calidad.\n\nEspera unos 15 segundos y vuelve a presionar esta flecha para guardar.");
+                            if (!response.ok) {
+                              btn.innerHTML = originalHtml;
+                              alert("⚠️ El archivo no existe en el servidor.\n\nEsto sucede si Render borró el archivo temporal o si falló el proceso interno.");
                               return;
                             }
                             
-                            // Descarga nativa limpia. El navegador celular lo interceptará automáticamente sin cambiar la pantalla.
-                            window.location.href = fileUrl;
+                            const blob = await response.blob();
+                            const blobUrl = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = blobUrl;
+                            link.setAttribute('download', `AKASHA_Media_${v.id}.mp4`);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+                            btn.innerHTML = originalHtml;
+                            
                           } catch (error) {
-                            alert("⚠️ Comprobando archivo... Intenta de nuevo en un momento.");
+                            btn.innerHTML = originalHtml;
+                            alert("⚠️ Error de red. Intenta de nuevo.");
                           }
                         }} className="w-[28px] h-[28px] bg-[#E8F8F5] border border-[#2ECC71] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#D5F5E3] shadow-sm active:scale-90 transition-transform" title="Guardar a la Galería">
                           <span className="font-bold text-[14px]">⬇️</span>
