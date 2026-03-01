@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 /* ==========================================================================
-   COMPONENTES SVG ORIGINALES (Engranaje, WhatsApp, Mail)
+   COMPONENTES SVG ORIGINALES
    ========================================================================== */
 const IconGear = ({ fill }: { fill: string }) => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill={fill}>
@@ -20,7 +20,6 @@ const IconMail = () => (
   </svg>
 );
 
-// === EXTRACCIÓN INTELIGENTE DE ENLACES PARA TODAS LAS REDES ===
 const extraerUrls = (texto: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const encontradas = texto.match(urlRegex);
@@ -31,6 +30,7 @@ export default function Home() {
   /* ==========================================================================
      ESTADOS
      ========================================================================== */
+  const [isLoaded, setIsLoaded] = useState(false); // Bandera para saber si ya leyó el disco duro
   const [showSplash, setShowSplash] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
 
@@ -44,12 +44,20 @@ export default function Home() {
   const [modalAbierto, setModalAbierto] = useState(''); 
   const [abriendoCarpeta, setAbriendoCarpeta] = useState(false);
 
-  // AQUÍ ESTÁN TODAS TUS OPCIONES ORIGINALES INTACTAS
+  // AQUÍ ESTÁN TUS 12 OPCIONES ORIGINALES COMPLETAS
   const [config, setConfig] = useState({
-    TemaOscuro: false, Notificaciones: true, AutoLimpiar: false, ControlParental: false,
-    RutaDescargas: 'C:/Users/Downloads/AKASHA', FormatoDefault: 'Original (Sin conversión)',
-    CalidadDefault: 'Original (Sin compresión)', Subtitulos: false, MaxSimultaneas: '1',
-    LimiteVelocidad: 'Sin limite', VideosPrivados: false, Modo1Clic: false
+    TemaOscuro: false, 
+    Notificaciones: true, 
+    AutoLimpiar: false, 
+    ControlParental: false,
+    RutaDescargas: 'C:/Users/Downloads/AKASHA', 
+    FormatoDefault: 'Original (Sin conversión)',
+    CalidadDefault: 'Original (Sin compresión)', 
+    Subtitulos: false, 
+    MaxSimultaneas: '1',
+    LimiteVelocidad: 'Sin limite', 
+    VideosPrivados: false, 
+    Modo1Clic: false
   });
   const [tempConfig, setTempConfig] = useState({ ...config });
 
@@ -63,9 +71,32 @@ export default function Home() {
   const videosCompletados = listaVideos.filter(v => v.estado === 'Completado').length;
 
   /* ==========================================================================
-     EFECTOS SECUNDARIOS
+     SISTEMA DE MEMORIA LOCAL (Soluciona el reseteo al compartir)
      ========================================================================== */
-  
+  useEffect(() => {
+    // 1. Cargar datos guardados al iniciar
+    const savedVideos = localStorage.getItem('akasha_videos');
+    const savedConfig = localStorage.getItem('akasha_config');
+    if (savedVideos) setListaVideos(JSON.parse(savedVideos));
+    if (savedConfig) {
+      const parsedConfig = JSON.parse(savedConfig);
+      setConfig(parsedConfig);
+      setTempConfig(parsedConfig);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    // 2. Guardar automáticamente cada vez que cambie la lista o la configuración
+    if (isLoaded) {
+      localStorage.setItem('akasha_videos', JSON.stringify(listaVideos));
+      localStorage.setItem('akasha_config', JSON.stringify(config));
+    }
+  }, [listaVideos, config, isLoaded]);
+
+  /* ==========================================================================
+     EFECTOS SECUNDARIOS Y MOTORES
+     ========================================================================== */
   useEffect(() => {
     const t1 = setTimeout(() => setFadeOut(true), 2500);
     const t2 = setTimeout(() => setShowSplash(false), 3500);
@@ -79,9 +110,9 @@ export default function Home() {
     link.href = '/logo-akasha.png';
   }, []);
 
-  // RECEPTOR INVISIBLE DE COMPARTIR (Web Share Target Multiredes)
+  // RECEPTOR DE COMPARTIR (Acumula sin borrar lo anterior)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (isLoaded && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const sharedText = params.get('url') || params.get('text') || params.get('title') || '';
       const urlsEncontradas = extraerUrls(sharedText);
@@ -100,12 +131,12 @@ export default function Home() {
         });
       }
     }
-  }, []);
+  }, [isLoaded]);
 
-  // Monitor del Portapapeles Multiredes
+  // Monitor del Portapapeles
   useEffect(() => {
     const checkClipboard = async () => {
-      if (!document.hasFocus()) return;
+      if (!document.hasFocus() || !isLoaded) return;
       try {
         const text = await navigator.clipboard.readText();
         const urlsEncontradas = extraerUrls(text);
@@ -138,13 +169,13 @@ export default function Home() {
     const interval = setInterval(checkClipboard, 1000);
     window.addEventListener('focus', checkClipboard);
     return () => { clearInterval(interval); window.removeEventListener('focus', checkClipboard); };
-  }, [config.Modo1Clic]);
+  }, [config.Modo1Clic, isLoaded]);
 
-  // Motor de Descargas (CON ENTREGA AL CELULAR)
+  // MOTOR DE DESCARGAS Y PUENTE DE ENTREGA
   useEffect(() => {
     let isActive = true;
     const procesarCola = async () => {
-      if (!isActive) return;
+      if (!isActive || !isLoaded) return;
       const currentList = listaVideosRef.current;
       const conf = configRef.current;
       const maxConcurrent = conf.MaxSimultaneas === 'Ilimitadas' ? 999 : parseInt(conf.MaxSimultaneas) || 1;
@@ -176,13 +207,26 @@ export default function Home() {
                 hasChanges = true; activeCount--;
               } else if (p >= 0 && p !== v.progreso) {
                 let c = '#FF0000'; if (p > 33) c = '#FF8C00'; if (p > 66) c = '#F1C40F'; if (p >= 100) c = '#00C851'; 
-                newState[i] = { ...v, progreso: p, colorProgreso: c, estado: p >= 100 ? 'Completado' : 'Descargando' };
-                hasChanges = true; 
                 
-                // MAGIA: El Puente de Entrega para el celular
-                if (p >= 100) {
+                // Si el progreso llega a 100 por primera vez, forzamos la descarga al celular
+                if (p >= 100 && v.progreso < 100) {
+                  newState[i] = { ...v, progreso: 100, colorProgreso: '#00C851', estado: 'Completado' };
+                  hasChanges = true; 
                   activeCount--;
-                  window.location.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
+                  
+                  // Inyector Nativo de Descarga (Soluciona el "Video Fantasma")
+                  setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
+                    link.target = '_blank';
+                    link.download = `Media_${v.id}`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }, 500);
+                } else if (p < 100) {
+                  newState[i] = { ...v, progreso: p, colorProgreso: c, estado: 'Descargando' };
+                  hasChanges = true;
                 }
               }
             }
@@ -207,10 +251,10 @@ export default function Home() {
     };
     procesarCola();
     return () => { isActive = false; };
-  }, []);
+  }, [isLoaded]);
 
   /* ==========================================================================
-     FUNCIONES
+     FUNCIONES DE UI
      ========================================================================== */
   const abrirConfiguracion = () => { setTempConfig({ ...config }); setPestañaActiva('General'); setMostrarConfig(true); };
   const guardarConfiguracion = () => { setConfig({ ...tempConfig }); setMostrarConfig(false); };
@@ -220,7 +264,7 @@ export default function Home() {
     try {
       const rutaWindows = config.RutaDescargas.replace(/\//g, '\\');
       const res = await fetch('https://akasha-api-1k5x.onrender.com/api/abrir_carpeta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ruta: rutaWindows }) });
-      if (!res.ok) alert(`⚠️ El archivo se descargó directamente a tu carpeta de Descargas del celular o PC.`);
+      if (!res.ok) alert(`⚠️ En el celular, busca en tu app de "Descargas" o "Galería".`);
     } catch (e) { alert(`Servidor apagado.`); }
   };
 
@@ -253,7 +297,7 @@ export default function Home() {
   };
 
   const limpiarListaSegura = () => {
-    if (listaVideos.some(v => v.estado === 'Descargando' || v.estado === 'En Cola')) { alert("Espera a finalizar."); return; }
+    if (listaVideos.some(v => v.estado === 'Descargando' || v.estado === 'En Cola')) { alert("Espera a finalizar las descargas activas."); return; }
     setListaVideos([]);
   };
 
@@ -275,7 +319,7 @@ export default function Home() {
   };
 
   /* ==========================================================================
-     ESTILOS Y RENDERIZADO VISUAL
+     RENDERIZADO VISUAL
      ========================================================================== */
   const isDark = config.TemaOscuro;
   const isTempDark = tempConfig.TemaOscuro;
@@ -294,7 +338,6 @@ export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden">
       
-      {/* PANTALLA SPLASH */}
       {showSplash && (
         <div className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white transition-opacity duration-1000 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
           <div className="relative w-48 h-48 mb-6 animate-pulse">
@@ -310,7 +353,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* INTERFAZ PRINCIPAL */}
       <div className={`min-h-screen flex items-center justify-center p-4 font-sans transition-colors duration-300 ${cBgApp} ${cFgText}`}>
         <div className={`w-full max-w-[920px] h-[85vh] min-h-[580px] max-h-[750px] rounded-[8px] shadow-2xl flex flex-col border-2 border-[#E67E22] ${cBgBox}`}>
           
@@ -381,7 +423,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* --- MODAL CONFIGURACIÓN (RESTAURACIÓN TOTAL) --- */}
       {mostrarConfig && (
         <div className="absolute inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
           <div className={`w-full max-w-[560px] flex flex-col ${modalWrapperStyle} ${cConfigModalBg} ${cConfigText}`}>
@@ -393,7 +434,7 @@ export default function Home() {
               <button onClick={cancelarConfiguracion} className="hover:bg-red-600 hover:text-white px-2 rounded text-lg">✕</button>
             </div>
             
-            <div className="flex-grow flex flex-col p-[10px] overflow-hidden">
+            <div className="p-[10px] flex-grow flex flex-col overflow-hidden">
               <div className="flex flex-wrap border-b border-gray-300 gap-[2px]">
                 {['General', 'Descargas', 'Red y Automático', 'Soporte y Comunidad'].map(tab => (
                   <button key={tab} onClick={() => setPestañaActiva(tab)} className={`px-[12px] py-[5px] text-[12px] border ${cConfigBorder} rounded-t-[4px] font-bold cursor-pointer transition-colors ${pestañaActiva === tab ? `${cConfigInnerBg} border-b-transparent` : `${cConfigTabBg} text-gray-500`}`}>
@@ -417,6 +458,10 @@ export default function Home() {
                     <div className="flex items-center gap-2">
                       <input id="chkLimp" type="checkbox" checked={tempConfig.AutoLimpiar} onChange={(e) => setTempConfig(p => ({...p, AutoLimpiar: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
                       <label htmlFor="chkLimp" className="cursor-pointer">Limpiar lista automáticamente al terminar</label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input id="chkParental" type="checkbox" checked={tempConfig.ControlParental} onChange={(e) => setTempConfig(p => ({...p, ControlParental: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkParental" className="cursor-pointer">Activar Control Parental</label>
                     </div>
                   </div>
                 )}
@@ -442,6 +487,10 @@ export default function Home() {
                         <option>Original (Sin compresión)</option><option>Máxima</option><option>1080p (Full HD)</option><option>720p (HD)</option>
                       </select>
                     </div>
+                    <div className="flex items-center gap-2 mt-2 border-t pt-3 border-gray-300">
+                      <input id="chkSubs" type="checkbox" checked={tempConfig.Subtitulos} onChange={(e) => setTempConfig(p => ({...p, Subtitulos: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkSubs" className="font-bold cursor-pointer">Descargar e incrustar Subtítulos automáticamente</label>
+                    </div>
                   </div>
                 )}
 
@@ -460,6 +509,10 @@ export default function Home() {
                       </select>
                     </div>
                     <div className="flex items-center gap-2 pt-2">
+                      <input id="chkPrivados" type="checkbox" checked={tempConfig.VideosPrivados} onChange={e => setTempConfig(p => ({...p, VideosPrivados: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
+                      <label htmlFor="chkPrivados" className="cursor-pointer">Soporte para videos privados (requiere login manual)</label>
+                    </div>
+                    <div className="flex items-center gap-2 pt-2 border-t border-gray-300">
                       <input id="chk1c" type="checkbox" checked={tempConfig.Modo1Clic} onChange={e => setTempConfig(p => ({...p, Modo1Clic: e.target.checked}))} className="w-[14px] h-[14px] cursor-pointer"/> 
                       <label htmlFor="chk1c" className="font-bold cursor-pointer text-[#E67E22]">Modo 1-Clic: Empezar automáticamente</label>
                     </div>
@@ -538,7 +591,7 @@ export default function Home() {
               </ul>
 
               <p className="mb-6 font-bold text-lg text-[#2d3e50]">3. Ajustes de Descarga</p>
-              <p className="mb-6">Desde el ícono del engranaje puedes configurar la <strong>Calidad del video</strong>, el <strong>Formato</strong> (Convertir a MP3) y tu <strong>Límite de velocidad</strong>. Si activas el "Modo 1-Clic", la descarga iniciará tan pronto el enlace toque la aplicación.</p>
+              <p className="mb-6">Desde el ícono del engranaje puedes configurar la <strong>Calidad del video</strong>, el <strong>Formato</strong>, los <strong>Subtítulos</strong> y tu <strong>Límite de velocidad</strong>. Si activas el "Modo 1-Clic", la descarga iniciará tan pronto el enlace toque la aplicación.</p>
             </div>
           </div>
         </div>
