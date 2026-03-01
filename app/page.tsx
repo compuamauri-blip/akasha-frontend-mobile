@@ -195,7 +195,6 @@ export default function Home() {
       for (const v of currentList) {
         if (v.estado === 'Descargando') {
           try {
-            // CORRECCIÓN CRÍTICA: Cambiado de 127.0.0.1 al servidor Nube
             const res = await fetch(`https://akasha-api-1k5x.onrender.com/api/progreso/${v.id}`);
             if (res.ok) { 
               const data = await res.json(); 
@@ -232,11 +231,17 @@ export default function Home() {
                 newState[i] = { ...v, progreso: p, colorProgreso: c, estado: p >= 100 ? 'Completado' : 'Descargando' };
                 hasChanges = true;
                 
-                // === AUTO DESCARGA AL LLEGAR A 100% ===
+                // === AUTO DESCARGA AL LLEGAR A 100% (CORREGIDO PARA MÓVIL) ===
                 if (p >= 100 && v.progreso < 100) {
                   activeCount--; 
                   setTimeout(() => {
-                    window.location.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
+                    const link = document.createElement('a');
+                    link.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
+                    link.target = '_blank';
+                    link.setAttribute('download', `AKASHA_Media_${v.id}`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                   }, 500);
                 }
               }
@@ -488,10 +493,19 @@ export default function Home() {
                         </button>
                       </>
                     )}
-                    {/* NUEVO BOTÓN DE DESCARGA FÍSICA A LA GALERÍA */}
+                    {/* NUEVO BOTÓN DE DESCARGA FÍSICA A LA GALERÍA (CORREGIDO PARA MÓVIL) */}
                     {v.estado === 'Completado' && (
                       <div className="flex gap-[4px] items-center justify-center">
-                        <button type="button" onClick={() => window.location.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`} className="w-[28px] h-[28px] bg-[#E8F8F5] border border-[#2ECC71] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#D5F5E3] shadow-sm active:scale-90 transition-transform" title="Guardar a la Galería">
+                        <button type="button" onClick={(e) => {
+                          e.preventDefault();
+                          const link = document.createElement('a');
+                          link.href = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
+                          link.target = '_blank';
+                          link.setAttribute('download', `AKASHA_Media_${v.id}`);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }} className="w-[28px] h-[28px] bg-[#E8F8F5] border border-[#2ECC71] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#D5F5E3] shadow-sm active:scale-90 transition-transform" title="Guardar a la Galería">
                           <span className="font-bold text-[14px]">⬇️</span>
                         </button>
                         <button type="button" onClick={() => eliminarVideo(v.id)} className="w-[28px] h-[28px] bg-transparent flex justify-center items-center cursor-pointer hover:bg-gray-200 rounded-full" title="Limpiar de la lista">
@@ -769,10 +783,10 @@ export default function Home() {
                 <h2 className="m-0 border-none p-0 bg-transparent text-[1.5em] text-[#2d3e50] font-bold mb-[20px]">Soporte Técnico Especializado</h2>
                 <p className="text-[1.1em] mb-[20px]">¿Tienes un problema específico o encontraste un error? Nuestro equipo está listo para asistirte.</p>
                 <div className="flex justify-center flex-wrap gap-[15px]">
-                  <a href="https://wa.me/573155622460?text=Hola,%20necesito%20soporte%20con%20el%20software%20AKASHA%20Downloader." target="_blank" rel="noreferrer" className="inline-flex items-center justify-center p-[15px_30px] no-underline rounded-[8px] font-bold text-[1.1em] transition-all duration-300 bg-[#25D366] text-black shadow-[0_4px_#128C7E] hover:-translate-y-[2px]">
+                  <a href="https://wa.me/573155622460?text=Hola,%20necesito%20soporte%20con%20el%20software%20AKASHA%20Downloader." target="_blank" rel="noreferrer" className="inline-flex items-center justify-center p-[15px_30px] no-underline rounded-[8px] font-bold text-[1.1em] transition-all duration-300 bg-[#25D366] text-black shadow-[0_4px_#128C7E] hover:-translate-y-[2px] hover:shadow-[0_6px_rgba(0,0,0,0.2)] active:translate-y-[2px] active:shadow-[0_1px_rgba(0,0,0,0.2)]">
                     <span className="mr-[10px]"><IconWA/></span> Escríbenos por WhatsApp
                   </a>
-                  <a href="mailto:compuamauri@gmail.com?subject=Soporte%20AKASHA%20Downloader" className="inline-flex items-center justify-center p-[15px_30px] no-underline rounded-[8px] font-bold text-[1.1em] transition-all duration-300 bg-[#D44638] text-white shadow-[0_4px_#b23124] hover:-translate-y-[2px]">
+                  <a href="mailto:compuamauri@gmail.com" className="inline-flex items-center justify-center p-[15px_30px] no-underline rounded-[8px] font-bold text-[1.1em] transition-all duration-300 bg-[#D44638] text-white shadow-[0_4px_#b23124] hover:-translate-y-[2px] hover:shadow-[0_6px_rgba(0,0,0,0.2)] active:translate-y-[2px] active:shadow-[0_1px_rgba(0,0,0,0.2)]">
                     <span className="mr-[10px]"><IconMail/></span> Déjanos un Correo Electrónico
                   </a>
                 </div>
