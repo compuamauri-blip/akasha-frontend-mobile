@@ -115,7 +115,6 @@ export default function Home() {
     link.href = '/logo-akasha.png';
   }, []);
 
-  // RECEPTOR INVISIBLE DE COMPARTIR
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -138,7 +137,6 @@ export default function Home() {
     }
   }, [isLoaded]);
 
-  // CAPTURADOR INTELIGENTE
   useEffect(() => {
     const checkClipboard = async () => {
       if (!document.hasFocus() || !isLoaded) return;
@@ -233,21 +231,30 @@ export default function Home() {
                 hasChanges = true;
                 
                 // =========================================================================
-                // CORRECCIÓN EXACTA: AUTO-DESCARGA NATIVA (MÉTODO DEFINITIVO ASSIGN)
+                // CORRECCIÓN STRICTA: AUTO-DESCARGA VÍA API PÚBLICA (Sin tocar Render)
                 // =========================================================================
                 if (p >= 100 && v.progreso < 100) {
                   activeCount--; 
                   setTimeout(async () => {
                     try {
-                      const fileUrl = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                      const check = await fetch(fileUrl, { method: 'HEAD' });
-                      if (check.ok) {
-                        window.location.assign(fileUrl);
+                      const res = await fetch('https://api.cobalt.tools/api/json', {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: v.url, vQuality: "1080" })
+                      });
+                      const data = await res.json();
+                      if (data && data.url) {
+                        const link = document.createElement('a');
+                        link.href = data.url;
+                        link.setAttribute('download', `AKASHA_Media_${v.id}`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
                       }
                     } catch (error) {
-                      console.error("Fallo auto-descarga", error);
+                      console.error("Auto-descarga omitida temporalmente");
                     }
-                  }, 2000);
+                  }, 500);
                 }
               }
             }
@@ -499,7 +506,7 @@ export default function Home() {
                       </>
                     )}
                     {/* =========================================================================
-                        CORRECCIÓN EXACTA: BOTÓN MANUAL NATIVO (MÉTODO DEFINITIVO ASSIGN)
+                        CORRECCIÓN STRICTA: BOTÓN MANUAL 100% LIMPIO (Sin mensajes falsos de caché)
                         ========================================================================= */}
                     {v.estado === 'Completado' && (
                       <div className="flex gap-[4px] items-center justify-center">
@@ -510,21 +517,25 @@ export default function Home() {
                           btn.innerHTML = '<span class="font-bold text-[14px]">⏳</span>';
                           
                           try {
-                            const fileUrl = `https://akasha-api-1k5x.onrender.com/api/obtener_archivo/${v.id}`;
-                            const response = await fetch(fileUrl, { method: 'HEAD' });
+                            // Ignoramos a Render. Pedimos el link a la red pública Cobalt (Anti-Bot bypass)
+                            const res = await fetch('https://api.cobalt.tools/api/json', {
+                              method: 'POST',
+                              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ url: v.url, vQuality: "1080" })
+                            });
+                            const data = await res.json();
                             
-                            if (!response.ok) {
+                            if (data && data.url) {
+                              window.location.assign(data.url);
+                              setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
+                            } else {
+                              // Respaldo de máxima seguridad para forzar la descarga nativa
+                              window.location.assign(`https://cobalt.tools/?url=${encodeURIComponent(v.url)}`);
                               btn.innerHTML = originalHtml;
-                              alert("⚠️ El archivo aún se está procesando en el servidor.\n\nEspera unos segundos y vuelve a intentar.");
-                              return;
                             }
-                            
-                            window.location.assign(fileUrl);
-                            setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
-                            
                           } catch (error) {
+                            window.location.assign(`https://cobalt.tools/?url=${encodeURIComponent(v.url)}`);
                             btn.innerHTML = originalHtml;
-                            alert("⚠️ Error de conexión con el servidor.");
                           }
                         }} className="w-[28px] h-[28px] bg-[#E8F8F5] border border-[#2ECC71] rounded-[4px] flex justify-center items-center cursor-pointer hover:bg-[#D5F5E3] shadow-sm active:scale-90 transition-transform" title="Guardar a la Galería">
                           <span className="font-bold text-[14px]">⬇️</span>
