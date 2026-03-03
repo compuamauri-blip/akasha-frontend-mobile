@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 
 /* ==========================================================================
    COMPONENTES SVG EMPAQUETADOS
-   Iconos optimizados para no depender de librerías externas
    ========================================================================== */
 const IconGear = ({ fill }: { fill: string }) => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill={fill}>
@@ -115,7 +114,6 @@ export default function Home() {
     link.href = '/logo-akasha.png';
   }, []);
 
-  // RECEPTOR INVISIBLE DE COMPARTIR
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -138,7 +136,6 @@ export default function Home() {
     }
   }, [isLoaded]);
 
-  // CAPTURADOR INTELIGENTE
   useEffect(() => {
     const checkClipboard = async () => {
       if (!document.hasFocus() || !isLoaded) return;
@@ -180,7 +177,7 @@ export default function Home() {
   }, [config.Modo1Clic, isLoaded]);
 
   /* ==========================================================================
-     NUEVO MOTOR ANTI-CORS Y ALTA VELOCIDAD
+     MOTOR DEFINITIVO (USANDO EL PROXY SEGURO DE VERCEL)
      ========================================================================== */
   useEffect(() => {
     let isActive = true;
@@ -198,7 +195,7 @@ export default function Home() {
       if (activeCount < maxConcurrent && enCola.length > 0) {
         const video = enCola[0];
         
-        // Iniciamos y simulamos el progreso visual de forma robusta
+        // Simulación visual de progreso para que el usuario sepa que está trabajando
         setListaVideos(prev => prev.map(v => 
           v.id === video.id ? { ...v, estado: 'Descargando', progreso: 10, colorProgreso: '#FF8C00' } : v
         ));
@@ -215,50 +212,41 @@ export default function Home() {
         try {
           const isAudio = conf.FormatoDefault.includes("Audio");
           
-          // CONEXIÓN DIRECTA A SERVIDORES CON MULTIPLES FALLBACKS ANTI-CORS
-          let finalUrl = "";
+          // CONEXIÓN AL PUENTE LOCAL DE VERCEL (Esquiva el CORS 100%)
+          const res = await fetch('/api/extraer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: video.url, isAudio: isAudio })
+          });
           
-          try {
-              // Intento 1: API Directa
-              const res = await fetch('https://api.cobalt.tools/api/json', {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: video.url, isAudioOnly: isAudio })
-              });
-              const data = await res.json();
-              if (data && data.url) finalUrl = data.url;
-          } catch (e1) {
-              // Intento 2: Instancia de Respaldo por si hay bloqueo de red
-              const res2 = await fetch('https://co.wuk.sh/api/json', {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: video.url, isAudioOnly: isAudio })
-              });
-              const data2 = await res2.json();
-              if (data2 && data2.url) finalUrl = data2.url;
-          }
-
+          const data = await res.json();
           clearInterval(progressInterval);
 
-          if (finalUrl) {
+          if (data && data.url) {
             setListaVideos(prev => prev.map(v => 
-              v.id === video.id ? { ...v, estado: 'Completado', progreso: 100, colorProgreso: '#00C851', downloadUrl: finalUrl } : v
+              v.id === video.id ? { ...v, estado: 'Completado', progreso: 100, colorProgreso: '#00C851', downloadUrl: data.url } : v
             ));
 
-            // AUTO-DESCARGA NATIVA (Esto iguala la velocidad de las apps de la tienda)
+            // ORDEN NATIVA DE DESCARGA: Manda el archivo real al celular en segundos.
             setTimeout(() => {
-              window.location.assign(finalUrl);
+              const link = document.createElement('a');
+              link.href = data.url;
+              // Forzamos el atributo download para que el celular lo asimile silenciosamente
+              link.setAttribute('download', `AKASHA_Media_${video.id}`);
+              link.setAttribute('target', '_blank'); // Respaldo de seguridad
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
             }, 1000);
 
           } else {
-            throw new Error("Ambas redes bloquearon la extracción.");
+            throw new Error("El puente falló al extraer la URL.");
           }
 
         } catch (error) {
           clearInterval(progressInterval);
-          // Si todo falla, guardamos el enlace original para que el botón naranja active la descarga en pestaña nueva
           setListaVideos(prev => prev.map(v => 
-            v.id === video.id ? { ...v, estado: 'Completado', progreso: 100, colorProgreso: '#00C851', downloadUrl: `https://cobalt.tools/?url=${encodeURIComponent(video.url)}` } : v
+            v.id === video.id ? { ...v, estado: 'Error', progreso: 0, colorProgreso: '#CC0000' } : v
           ));
         }
       }
@@ -457,13 +445,20 @@ export default function Home() {
                       </>
                     )}
                     {/* =========================================================================
-                        BOTÓN NATIVO CERO FALLOS (Abre el MP4 con el gestor potente del celular)
+                        BOTÓN MANUAL FINAL (Limpio y directo al archivo sin salir de la app)
                         ========================================================================= */}
                     {v.estado === 'Completado' && (
                       <div className="flex gap-[4px] items-center justify-center">
-                        <button type="button" onClick={() => {
+                        <button type="button" onClick={(e) => {
+                          e.preventDefault();
                           if (v.downloadUrl) {
-                            window.open(v.downloadUrl, '_blank');
+                            const link = document.createElement('a');
+                            link.href = v.downloadUrl;
+                            link.setAttribute('download', `AKASHA_Media_${v.id}`);
+                            link.setAttribute('target', '_blank');
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
                           } else {
                             alert("Enlace no encontrado, intenta agregar el video de nuevo.");
                           }
