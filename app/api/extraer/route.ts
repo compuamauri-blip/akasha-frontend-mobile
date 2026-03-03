@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { url, isAudio } = await request.json();
+    const body = await request.json();
 
-    // Vercel hace la petición como servidor (Cero bloqueos CORS)
+    // Vercel actúa como tu servidor y pide el enlace directo (sin procesamientos pesados)
     const cobaltRes = await fetch('https://api.cobalt.tools/api/json', {
       method: 'POST',
       headers: {
@@ -12,21 +12,19 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        url: url,
-        vQuality: "1080",
-        isAudioOnly: isAudio,
-        aFormat: "mp3"
+        url: body.url,
+        isAudioOnly: body.isAudio
       })
     });
 
     if (!cobaltRes.ok) {
-      return NextResponse.json({ error: 'Fallo al extraer en el servidor' }, { status: 500 });
+      return NextResponse.json({ error: `La red externa bloqueó la petición (Error ${cobaltRes.status})` }, { status: 500 });
     }
 
     const data = await cobaltRes.json();
     return NextResponse.json(data);
     
-  } catch (error) {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'El puente de Vercel no pudo conectarse.' }, { status: 500 });
   }
 }
