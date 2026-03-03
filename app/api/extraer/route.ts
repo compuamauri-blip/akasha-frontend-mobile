@@ -3,52 +3,69 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    let targetUrl = body.url;
 
-    // Headers estrictos para simular un navegador real y evitar el Error 400
+    // =========================================================================
+    // EL DESENMASCARADOR DE FACEBOOK (Anti-Share)
+    // Si detecta un link engañoso, Vercel lo abre primero para extraer el link real
+    // =========================================================================
+    if (targetUrl.includes('facebook.com/share') || targetUrl.includes('fb.watch')) {
+      try {
+        const fbRes = await fetch(targetUrl, { 
+          redirect: 'follow',
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        });
+        targetUrl = fbRes.url; // Aquí atrapamos el link real del video/reel
+      } catch (e) {
+        console.log("No se pudo expandir el enlace de Facebook");
+      }
+    }
+
+    // Headers estrictos para simular un navegador real
     const headers = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     };
 
-    // INTENTO 1: Usando la nueva API principal de Cobalt
+    // INTENTO 1: Pedimos el video usando la URL ya desenmascarada
     let cobaltRes = await fetch('https://api.cobalt.tools/', {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({
-        url: body.url,
+        url: targetUrl,
         isAudioOnly: body.isAudio
       })
     });
 
-    // INTENTO 2: Si la nueva falla (Error 400), intentamos con la API clásica
+    // INTENTO 2: Respaldo
     if (!cobaltRes.ok) {
       cobaltRes = await fetch('https://api.cobalt.tools/api/json', {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
-          url: body.url,
+          url: targetUrl,
           isAudioOnly: body.isAudio
         })
       });
     }
 
     if (!cobaltRes.ok) {
-      return NextResponse.json({ error: `Cobalt rechazó el enlace (Error ${cobaltRes.status}). Puede ser un video privado, una historia temporal, o un formato 'Share' bloqueado por Facebook.` }, { status: 500 });
+      return NextResponse.json({ error: `Cobalt rechazó el enlace (Error ${cobaltRes.status}). Verifica que el video no sea privado.` }, { status: 500 });
     }
 
     const data = await cobaltRes.json();
     
-    // Cobalt puede devolver el enlace directo o un array de opciones. Esto atrapa ambos.
+    // Extraemos el enlace puro de descarga
     const finalUrl = data.url || (data.picker && data.picker.length > 0 ? data.picker[0].url : null);
 
     if (!finalUrl) {
-       return NextResponse.json({ error: `La red procesó el enlace pero no devolvió el archivo MP4.` }, { status: 500 });
+       return NextResponse.json({ error: `Se analizó el enlace pero no se encontró el archivo MP4 descargable.` }, { status: 500 });
     }
 
     return NextResponse.json({ url: finalUrl });
     
   } catch (error: any) {
-    return NextResponse.json({ error: 'El puente de Vercel no pudo conectarse con la red de extracción.' }, { status: 500 });
+    return NextResponse.json({ error: 'El puente de Vercel falló al procesar la solicitud.' }, { status: 500 });
   }
 }
