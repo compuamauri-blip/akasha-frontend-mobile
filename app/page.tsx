@@ -177,7 +177,7 @@ export default function Home() {
   }, [config.Modo1Clic, isLoaded]);
 
   /* ==========================================================================
-     MOTOR DEFINITIVO (USANDO EL PROXY SEGURO DE VERCEL)
+     MOTOR DEFINITIVO CON ALERTA DE ERRORES (DIAGNÓSTICO EN PANTALLA)
      ========================================================================== */
   useEffect(() => {
     let isActive = true;
@@ -195,12 +195,11 @@ export default function Home() {
       if (activeCount < maxConcurrent && enCola.length > 0) {
         const video = enCola[0];
         
-        // Simulación visual de progreso para que el usuario sepa que está trabajando
         setListaVideos(prev => prev.map(v => 
-          v.id === video.id ? { ...v, estado: 'Descargando', progreso: 10, colorProgreso: '#FF8C00' } : v
+          v.id === video.id ? { ...v, estado: 'Descargando', progreso: 5, colorProgreso: '#FF8C00' } : v
         ));
 
-        let simulatedProgress = 10;
+        let simulatedProgress = 5;
         const progressInterval = setInterval(() => {
           simulatedProgress += Math.floor(Math.random() * 8) + 2; 
           if (simulatedProgress > 90) simulatedProgress = 90;
@@ -212,13 +211,24 @@ export default function Home() {
         try {
           const isAudio = conf.FormatoDefault.includes("Audio");
           
-          // CONEXIÓN AL PUENTE LOCAL DE VERCEL (Esquiva el CORS 100%)
+          // CONEXIÓN AL PUENTE LOCAL DE VERCEL
           const res = await fetch('/api/extraer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: video.url, isAudio: isAudio })
           });
           
+          // SI FALLA, LEEMOS EL ERROR PARA AVISARTE EN PANTALLA
+          if (!res.ok) {
+            let errorText = "Desconocido";
+            if (res.status === 404) errorText = "Error 404: Vercel NO encontró la carpeta 'api/extraer/route.ts'. Revisa GitHub.";
+            else {
+              const errData = await res.json().catch(()=>({}));
+              errorText = errData.error || `Error interno ${res.status}`;
+            }
+            throw new Error(errorText);
+          }
+
           const data = await res.json();
           clearInterval(progressInterval);
 
@@ -227,24 +237,19 @@ export default function Home() {
               v.id === video.id ? { ...v, estado: 'Completado', progreso: 100, colorProgreso: '#00C851', downloadUrl: data.url } : v
             ));
 
-            // ORDEN NATIVA DE DESCARGA: Manda el archivo real al celular en segundos.
             setTimeout(() => {
-              const link = document.createElement('a');
-              link.href = data.url;
-              // Forzamos el atributo download para que el celular lo asimile silenciosamente
-              link.setAttribute('download', `AKASHA_Media_${video.id}`);
-              link.setAttribute('target', '_blank'); // Respaldo de seguridad
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
+              window.location.assign(data.url);
             }, 1000);
 
           } else {
-            throw new Error("El puente falló al extraer la URL.");
+            throw new Error("El video es privado o fue bloqueado por la red social.");
           }
 
-        } catch (error) {
+        } catch (error: any) {
           clearInterval(progressInterval);
+          // ESTA ALERTA ES CLAVE: Te dirá exactamente por qué rebotó a 0%
+          alert("La descarga falló.\n\nMotivo Técnico:\n" + error.message);
+          
           setListaVideos(prev => prev.map(v => 
             v.id === video.id ? { ...v, estado: 'Error', progreso: 0, colorProgreso: '#CC0000' } : v
           ));
@@ -444,21 +449,12 @@ export default function Home() {
                         </button>
                       </>
                     )}
-                    {/* =========================================================================
-                        BOTÓN MANUAL FINAL (Limpio y directo al archivo sin salir de la app)
-                        ========================================================================= */}
                     {v.estado === 'Completado' && (
                       <div className="flex gap-[4px] items-center justify-center">
                         <button type="button" onClick={(e) => {
                           e.preventDefault();
                           if (v.downloadUrl) {
-                            const link = document.createElement('a');
-                            link.href = v.downloadUrl;
-                            link.setAttribute('download', `AKASHA_Media_${v.id}`);
-                            link.setAttribute('target', '_blank');
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
+                            window.location.assign(v.downloadUrl);
                           } else {
                             alert("Enlace no encontrado, intenta agregar el video de nuevo.");
                           }
